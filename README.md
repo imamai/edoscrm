@@ -59,9 +59,26 @@ npm test            # vitest — the SLA and escalation rules
 
 | Schedule | Job | What it does |
 | --- | --- | --- |
-| Hourly | *(default)* | SLA approach and breach notices; escalates an overdue case to the next accountable owner; re-checks batch thresholds as the window moves; purges complainant contact details past the retention period |
+| Daily 06:00 UTC | *(default)* | SLA approach and breach notices; escalates an overdue case to the next accountable owner; re-checks batch thresholds as the window moves; purges complainant contact details past the retention period |
 | Mondays 06:00 UTC | `?job=weekly` | Last week's report to leadership |
 | 1st of month 07:00 UTC | `?job=monthly` | Previous month's management report |
+
+**The SLA pass wants to run hourly, and currently cannot.** Vercel's Hobby
+plan allows only daily cron schedules and rejects the deployment outright if
+any schedule is more frequent, so the pass is set to once a day. That is
+enough for the T2 and T3 deadlines, which are measured in days — but it makes
+the T1 acknowledgement SLA (one hour) effectively unenforced, since a breach
+would not be noticed until the next morning.
+
+Two ways to get hourly back, whenever it matters enough:
+
+- **Upgrade to Vercel Pro** and change the first schedule back to `0 * * * *`.
+  Nothing else needs to change.
+- **Call the endpoint from somewhere else on an hourly schedule** — GitHub
+  Actions (`schedule: - cron: "0 * * * *"`), or any uptime pinger — with the
+  `Authorization: Bearer $CRON_SECRET` header. The job is idempotent: it
+  de-duplicates against notifications already sent in the last 20 hours, so
+  running it more often than needed is harmless.
 
 Run one by hand with
 `curl -H "Authorization: Bearer $CRON_SECRET" localhost:3005/api/cron`.
