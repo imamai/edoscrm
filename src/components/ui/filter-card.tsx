@@ -68,13 +68,25 @@ export function FilterField({
 }
 
 /** "Displaying 10 rows." — the count edos-poa puts under a report's table. */
-export function RecordCount({ shown, total, noun = "row" }: { shown: number; total?: number; noun?: string }) {
-  const plural = shown === 1 ? noun : `${noun}s`;
+export function RecordCount({
+  shown,
+  total,
+  noun = "row",
+  plural,
+}: {
+  shown: number;
+  total?: number;
+  noun?: string;
+  /** Pass this wherever adding an "s" is wrong — "category" -> "categories". */
+  plural?: string;
+}) {
+  const many = plural ?? `${noun}s`;
+  const word = shown === 1 ? noun : many;
   return (
     <p className="px-1 pt-3 text-xs text-ink-faint">
       {total !== undefined && total > shown
-        ? `Displaying ${shown.toLocaleString("en-KE")} of ${total.toLocaleString("en-KE")} ${noun}s.`
-        : `Displaying ${shown.toLocaleString("en-KE")} ${plural}.`}
+        ? `Displaying ${shown.toLocaleString("en-KE")} of ${total.toLocaleString("en-KE")} ${many}.`
+        : `Displaying ${shown.toLocaleString("en-KE")} ${word}.`}
     </p>
   );
 }
