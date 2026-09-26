@@ -10,11 +10,15 @@ export type Severity = "T1" | "T2" | "T3";
  * table (ARCHITECTURE.md §7/§8). `web` is the one fully automated channel —
  * written only by the public /api/v1/intake endpoint. The rest are
  * staff-attested: an agent logging that a complaint came in by phone, email,
- * WhatsApp or in person, ahead of any of those channels being automated
- * individually (the ARCHITECTURE.md §7 "ceiling" schema's dedicated
- * edoscrm_complaint_channels/communications tables stay deferred).
+ * WhatsApp, social media, a Sales rep or in person, ahead of any of those
+ * channels being automated individually (the ARCHITECTURE.md §7 "ceiling"
+ * schema's dedicated edoscrm_complaint_channels/communications tables stay
+ * deferred). `social` and `sales_rep` exist because the brief names both as
+ * distinct inbound routes — without them, Digital/Marketing's whole intake and
+ * the trade CFR route were invisible to "reporting by channel". `internal`
+ * stays the catch-all for anything that reached staff another way.
  */
-export type Channel = "internal" | "web" | "phone" | "email" | "whatsapp" | "walk_in";
+export type Channel = "internal" | "web" | "phone" | "email" | "whatsapp" | "walk_in" | "social" | "sales_rep";
 
 export type Complaint = {
   id: string;

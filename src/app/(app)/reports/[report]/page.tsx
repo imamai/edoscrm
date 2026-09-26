@@ -22,6 +22,8 @@ const CHANNELS = [
   { value: "email", label: "Email" },
   { value: "whatsapp", label: "WhatsApp" },
   { value: "walk_in", label: "Walk-in" },
+  { value: "social", label: "Social media" },
+  { value: "sales_rep", label: "Sales rep (trade)" },
 ];
 
 /**

@@ -66,7 +66,7 @@ export default async function DashboardPage() {
 
   const byChannel = new Map<Channel, number>();
   for (const c of data.complaints) byChannel.set(c.source, (byChannel.get(c.source) ?? 0) + 1);
-  const channelOrder: Channel[] = ["web", "phone", "email", "whatsapp", "walk_in", "internal"];
+  const channelOrder: Channel[] = ["web", "phone", "email", "whatsapp", "social", "sales_rep", "walk_in", "internal"];
   const channelBars = channelOrder
     .filter((ch) => (byChannel.get(ch) ?? 0) > 0)
     .map((ch, i) => ({ label: ch, value: byChannel.get(ch) ?? 0, color: CHART.series[i % CHART.series.length] }));

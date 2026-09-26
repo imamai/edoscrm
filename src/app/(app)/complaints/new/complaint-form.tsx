@@ -127,6 +127,8 @@ export function ComplaintForm({ aiAvailable }: { aiAvailable: boolean }) {
             <option value="email">Email</option>
             <option value="whatsapp">WhatsApp</option>
             <option value="walk_in">Walk-in</option>
+            <option value="social">Social media</option>
+            <option value="sales_rep">Sales rep (trade)</option>
           </SelectField>
         </div>
       </div>

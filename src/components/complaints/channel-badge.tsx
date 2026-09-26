@@ -1,4 +1,4 @@
-import { Phone, Mail, MessageCircle, Footprints, Globe, Building2 } from "lucide-react";
+import { Phone, Mail, MessageCircle, Footprints, Globe, Building2, Share2, Briefcase } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Channel } from "@/lib/data/complaints";
 
@@ -9,6 +9,8 @@ const CHANNEL: Record<Channel, { label: string; icon: typeof Phone }> = {
   email: { label: "Email", icon: Mail },
   whatsapp: { label: "WhatsApp", icon: MessageCircle },
   walk_in: { label: "Walk-in", icon: Footprints },
+  social: { label: "Social media", icon: Share2 },
+  sales_rep: { label: "Sales rep", icon: Briefcase },
 };
 
 export function ChannelBadge({ channel, className }: { channel: Channel; className?: string }) {

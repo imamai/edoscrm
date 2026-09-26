@@ -187,6 +187,8 @@ export default async function ComplaintsPage({ searchParams }: { searchParams: P
                 <option value="email">Email</option>
                 <option value="whatsapp">WhatsApp</option>
                 <option value="walk_in">Walk-in</option>
+                <option value="social">Social media</option>
+                <option value="sales_rep">Sales rep (trade)</option>
               </select>
               <select name="category" defaultValue={params.category ?? ""} className="h-9 rounded-lg border border-border bg-surface px-2 text-xs text-ink">
                 <option value="">All categories</option>
