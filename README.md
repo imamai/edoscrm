@@ -5,16 +5,24 @@ Multi-tenant complaint management / case workflow SaaS. See
 sequence. Through Phase 9 (of the sequence in ARCHITECTURE.md §14): tenants,
 auth, RBAC, complaints with an event log, a data-driven workflow engine with
 a chevron stage stepper (ported from EDOSPMIS), tasks on a generic Kanban
-board, an SLA engine, Investigation/RCA/CAPA, a "what needs attention"
-dashboard, edos.ai (one action: summarize a case), a public intake API,
-multi-channel intake tagging, a Reports page with brief-aligned KPIs, an
-in-app notification centre, product/batch tracking with pattern-based
-escalation, closure control, customer communication and compensation
-logging, CSV import/export, and role differentiation (Marketing Operations/
-Quality/Manufacturing/Sales/Finance/Leadership/Report Only). No platform
-admin console, workflow builder UI, or a member-management screen to assign
-people to the new roles yet — see ARCHITECTURE.md §14's "everything else"
-bucket and the CRM brief audit for what's still open.
+board, an SLA engine, Investigation/RCA/CAPA, dashboards and analytics,
+edos.ai (case summaries, drafted communications, and a tool-grounded Q&A
+assistant), a public intake API, eight intake channels, downloadable report
+registers, an in-app notification centre, product/batch tracking with
+pattern-based escalation, closure control, customer communication and
+compensation logging, CSV import/export, and the seven roles the complaint
+brief defines — with a screen to actually assign them.
+
+As of the 26 September 2026 requirements pass, every requirement in
+`crm-word/Complaint Management System.docx` is met. The three that had held
+most of the rest back are now done: **scheduled work** (SLA reminders,
+automatic escalation of overdue cases, weekly and monthly reports — nothing
+depends on somebody opening a page any more), **the complainant as a record**
+who is acknowledged on logging and told the outcome at closure, and **member
+management**, so the role model is usable rather than merely enforced. The
+app also works on a phone. See `crm-word/EDOS-CRM-Brief-Audit.pdf` for the
+line-by-line position and `crm-word/EDOS-CRM-Improvement-Audit.pdf` for what
+is worth doing beyond the brief.
 
 ## Setup
 
@@ -23,6 +31,40 @@ npm install
 cp .env.example .env.local   # fill in the keys — see comments in that file
 npm run dev
 ```
+
+Checks, all of which CI runs on every push:
+
+```bash
+npm run typecheck   # tsc --noEmit
+npm run lint
+npm test            # vitest — the SLA and escalation rules
+```
+
+### Environment
+
+| Variable | Needed for |
+| --- | --- |
+| `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Everything |
+| `SUPABASE_SERVICE_ROLE_KEY` | Public intake, inbound email, invitations, scheduled jobs |
+| `RESEND_API_KEY`, `RESEND_FROM_EMAIL` | Notifications, complainant acknowledgements, scheduled reports |
+| `ANTHROPIC_API_KEY` | edos.ai — summaries, drafts, the assistant. Without it those show a "not configured" notice and nothing else breaks |
+| `ANTHROPIC_MODEL` | Optional; defaults to `claude-haiku-4-5-20251001` |
+| `CRON_SECRET` | **Required** for `/api/cron`. Without it the endpoint refuses to run rather than defaulting to open — it emails whole workspaces and purges personal data |
+| `INBOUND_EMAIL_SECRET` | Optional; authorises the email-to-case webhook at `/api/v1/inbound-email` |
+
+### Scheduled jobs
+
+`vercel.json` registers three crons, all hitting `/api/cron` with
+`Authorization: Bearer $CRON_SECRET`:
+
+| Schedule | Job | What it does |
+| --- | --- | --- |
+| Hourly | *(default)* | SLA approach and breach notices; escalates an overdue case to the next accountable owner; re-checks batch thresholds as the window moves; purges complainant contact details past the retention period |
+| Mondays 06:00 UTC | `?job=weekly` | Last week's report to leadership |
+| 1st of month 07:00 UTC | `?job=monthly` | Previous month's management report |
+
+Run one by hand with
+`curl -H "Authorization: Bearer $CRON_SECRET" localhost:3005/api/cron`.
 
 The database lives in the shared `edos-pos` Supabase project
 (`cnlyuwslpcgosgwdmzav`) — see ARCHITECTURE.md §2 for what that sharing does
@@ -101,5 +143,38 @@ log in and explore rather than starting from an empty workspace:
       member-management screen to actually assign people to the new roles
       (they exist in the data model; nothing yet assigns non-admin members
       to them).
-- [ ] Platform admin console, workflow builder UI, member-management UI,
-      and the rest of ARCHITECTURE.md §14's "everything else"
+- [x] Requirements pass (26 Sep 2026) — closed every remaining gap from the
+      brief audit. Migrations `0015`–`0017`:
+      - **Scheduled work** (`lib/jobs/`, `/api/cron`, `vercel.json`): SLA
+        reminders and breach escalation to the next accountable owner, batch
+        thresholds re-evaluated over time rather than only at logging,
+        retention purging, and weekly/monthly report distribution recorded in
+        `edoscrm_report_runs` so a re-run is a no-op rather than a second email
+      - **Contacts** (`edoscrm_contacts`): the complainant as a record, matched
+        on normalised email/phone, with history on the case and a full record
+        page. Acknowledged automatically on logging; told the outcome at
+        closure, which is now required before a case with an address can close
+      - **Members & roles**: invite by email (no Bio account needed), assign
+        the seven roles, suspend — with a guard against the last administrator
+        locking the workspace out
+      - **Rules & categories**: SLA deadlines (including T2's separate
+        resolution-plan deadline), escalation thresholds, KPI targets,
+        categories and retention, all per workspace instead of compiled in
+      - **Product actions**: hold / release / withdrawal / recall, raised by
+        Quality and decided by Manufacturing, with the complaints as evidence
+      - **RCA summaries**: write → approve → share, every send logged
+      - **Email-to-case** (`/api/v1/inbound-email` + `/inbox`): controlled, so
+        auto-replies never become cases
+      - **Complaint correction** with before/after and a reason in the audit
+        log, which is now written to, readable and exportable
+      - **Mobile navigation**, error/loading/not-found boundaries, and the
+        shared Badge/Card/DataTable/EmptyState/Modal primitives
+      - KPIs read stored timestamps, so they can be reported for a past period;
+        shown on the Dashboard against each workspace's targets, and broken
+        down on Analytics by category, channel, severity, product and owner
+      - Two intake channels the brief names and the system lacked: `social`
+        and `sales_rep`
+      - `vitest` + GitHub Actions running typecheck, lint and tests
+- [ ] Beyond the brief: platform admin console, workflow builder UI, plan
+      entitlements and billing, observability and error tracking. These are
+      set out with reasoning in `crm-word/EDOS-CRM-Improvement-Audit.pdf`

@@ -111,50 +111,69 @@ enforced at the one layer that can't be bypassed by a bug in application code.
 
 ## 4. Directory layout
 
+The shape as built, rather than as first sketched — a few planned areas
+(`products/`, `customers/`, a command palette) never earned their place, and
+several that were not planned did.
+
 ```
 src/
   app/
-    (auth)/           login, forgot-password, reset-password
+    (auth)/             login, signup
     (app)/
-      layout.tsx        shell: sidebar (grouped nav, same pattern as EDOSPMIS),
-                         topbar, command palette (Cmd+K), quick-add
-      dashboard/         role-specific (§9)
-      cases/             list / board / calendar / [id] detail
-      tasks/             list / board / calendar
-      products/  batches/  customers/
-      investigations/[id]/  capas/[id]/
-      reports/
-      settings/          workflow builder, SLA rules, categories, severities,
-                          departments, teams, users, roles
-    (platform)/         EDOS Centre only — tenants, plans, feature flags,
-                         platform audit log
+      layout.tsx          shell: sidebar + mobile drawer, notification bell
+      loading.tsx  error.tsx  not-found.tsx    route boundaries
+      dashboard/          what needs attention, charts, Quality KPIs vs targets
+      complaints/         list (pipeline + detail panel), new/, [id]/ command centre
+      contacts/           the complainant, and everything they have raised
+      inbox/              inbound email waiting to become a case
+      tasks/
+      product-actions/    hold / release / withdrawal / recall approvals
+      rca-summaries/      write, approve, share
+      analytics/          trends, and KPIs disaggregated
+      reports/            downloadable registers ([report]/)
+      assistant/          edos.ai Q&A
+      settings/           workspace, members/, rules/, audit/, import/
+      platform/           placeholder until there is a second tenant to admin
     api/
-      v1/
-        intake/          public complaint submission (§8, §14)
-        webhooks/
+      cron/               the scheduled pass (section 15)
+      v1/intake/          public complaint submission (section 8)
+      v1/inbound-email/   email-to-case webhook
+      export/             report and audit downloads
   components/
-    ui/                 button, field, table, badge, card, modal (ported),
-                         stat-card, chevron-stepper (ported + generalised)
-    app/                 sidebar-nav, command-palette, quick-add
-    cases/               case-summary-header, event-timeline, sla-badge
-    board/               generic Kanban (cases AND tasks reuse it — see §10)
+    ui/                 button, field, filter-card, primitives (badge, card,
+                         table, empty-state), modal, back-link, export-links,
+                         workflow-stepper
+    app/                sidebar-nav, notification-bell
+    complaints/         severity/sla/channel badges, event-timeline
+    charts/             hand-rolled SVG charts, ported from edos-poa
+    board/              generic Kanban
   lib/
     supabase/{client,server,admin}.ts
-    data/
-      tables.ts          every table name, once — mirrors edos-poa's convention
-      cases.ts  events.ts  tasks.ts  workflows.ts  sla.ts  ...
-    auth/{session,permissions}.ts
-    workflow/            engine: given a case + workflow definition, what
-                         transitions are legal, what they trigger (§10)
-    sla/                 SLA clock computation (§12)
-    ai/                  server-only Claude wrapper + suggestion recording (§11)
+    data/               tables.ts + one module per area; the only code that
+                         queries a table
+    domain/             pure rules, no server-only: sla, escalation,
+                         categories, product-actions, kpi-labels — importable
+                         from client components and unit-tested
+    jobs/               runner.ts, reports.ts — the scheduled work (section 15)
+    notify/             email.ts (Resend), complainant.ts
+    export/             csv.ts, table.ts — one table definition, three formats
+    ai/                 server-only Claude wrapper, tools, assistant loop
 supabase/migrations/
 ```
 
-`src/lib/data/*` is the only code that queries a table; `tables.ts` is the
-only place a table name is spelled. This is the single convention from
-EDOSPMIS/edos-poa most worth carrying over verbatim — it's what makes tenant
-isolation reviewable (a dozen files, not hundreds of call sites).
+Two conventions worth stating because they are what keep this reviewable:
+
+**`src/lib/data/*` is the only code that queries a table, and `tables.ts` is
+the only place a table name is spelled.** Carried over verbatim from
+EDOSPMIS/edos-poa. It is what makes tenant isolation checkable in a dozen
+files rather than across every call site.
+
+**`lib/domain/*` never imports `server-only`.** Anything a client component
+needs — a label map, a status vocabulary, a pure calculation — lives here.
+This is not stylistic: importing a value from a `server-only` module into a
+client component pulls the server Supabase client into the browser bundle and
+fails the build. It has caught us three times (`COMPLAINT_CATEGORIES`,
+`ACTION_LABEL`, `KPI_LABELS`), which is why the rule is written down.
 
 ---
 
@@ -211,38 +230,66 @@ uploads, RCA/CAPA milestones, customer contact — all the same shape:
 
 ---
 
-## 7. Core data model (Phase 1 shape — full DDL is Phase 2)
+## 7. Core data model
 
 Naming: `edoscrm_*`, no exceptions (brief §20 — doubly non-negotiable now
 that the tables live beside edoshatch360's and edos-poa's in one project,
-§2). The full 40-table brief (§43) is the ceiling, not the Phase-2 starting
-floor — see §13 for what actually gets built first.
+§2). Every table has row-level security enabled with policies; that is
+verified against the live database, not inferred from the migrations.
+
+What exists as of the 26 September 2026 requirements pass:
 
 ```
+-- tenancy and access
 edoscrm_tenants, edoscrm_tenant_settings, edoscrm_platform_admins
-edoscrm_users, edoscrm_departments, edoscrm_teams
+edoscrm_users, edoscrm_memberships, edoscrm_departments, edoscrm_teams
 edoscrm_roles, edoscrm_permissions, edoscrm_role_permissions, edoscrm_user_roles
 
-edoscrm_complaints
-edoscrm_complaint_events          -- §6
-edoscrm_complaint_assignments
-edoscrm_complaint_categories, edoscrm_complaint_severities, edoscrm_complaint_channels
-edoscrm_complaint_attachments, edoscrm_complaint_comments, edoscrm_complaint_communications
+-- the case, and the people who raise them
+edoscrm_complaints                  -- incl. contact_id and the acknowledged/
+                                    -- resolved/informed timestamps the KPIs read
+edoscrm_contacts                    -- the complainant as a record (7.1)
+edoscrm_complaint_events            -- section 6, the readable story on a case
+edoscrm_complaint_attachments, edoscrm_complaint_communications
+edoscrm_complaint_compensations     -- incl. credit_note_ref, outward to Finance
 
-edoscrm_products, edoscrm_product_batches, edoscrm_complaint_batch_links
+-- quality
+edoscrm_investigations, edoscrm_root_causes, edoscrm_capas
+edoscrm_rca_summaries, edoscrm_rca_summary_shares   -- approved external summaries
+edoscrm_product_actions             -- hold / release / withdrawal / recall
 
-edoscrm_investigations, edoscrm_root_causes, edoscrm_capas, edoscrm_corrective_actions
+-- configuration, per workspace rather than compiled in
+edoscrm_workflows, edoscrm_workflow_versions
+edoscrm_sla_rules                   -- ack / resolution-plan / RCA deadlines
+edoscrm_categories, edoscrm_kpi_targets
 
-edoscrm_workflows, edoscrm_workflow_stages, edoscrm_workflow_transitions
-edoscrm_slas, edoscrm_sla_rules
-edoscrm_escalations, edoscrm_escalation_rules
-
-edoscrm_tasks, edoscrm_task_checklists
-
-edoscrm_notifications, edoscrm_notification_preferences
-edoscrm_audit_logs
-edoscrm_ai_interactions, edoscrm_ai_suggestions
+-- operations
+edoscrm_tasks, edoscrm_notifications, edoscrm_audit_logs
+edoscrm_inbound_emails              -- email-to-case holding list
+edoscrm_report_runs                 -- evidence that a scheduled report went out
+edoscrm_ai_interactions
 ```
+
+Two shapes deliberately chosen against:
+
+- **Product and batch as their own tables.** SKU, batch number and production
+  and expiry dates live on the complaint. Batch grouping is a query, not a
+  join through a product catalogue this business does not yet hold in the
+  system. Promoting them later is additive.
+- **A separate channels table.** The channel is an enumerated column on the
+  complaint. Eight values, one per route the brief names; a table would add a
+  join to every query and buy nothing until a channel needs its own settings.
+
+### 7.1 The complainant
+
+`edoscrm_contacts` exists because the same person complaining three times was
+otherwise three unrelated cases with three spellings of their name. Matching
+is on a normalised email (lowercased, trimmed) and a normalised phone (digits
+only), both generated columns with unique indexes per tenant, so a number
+written with a country code and the same number written with a leading zero
+are one person. A complaint with neither gets no contact — an anonymous
+walk-in is a real case, and inventing a contact record for it would pollute
+the customer list.
 
 ---
 
@@ -333,19 +380,27 @@ displayed (card, table, detail page, notification — brief §16).
 
 ---
 
-## 13. What Phase 1 is explicitly *not* deciding yet
+## 13. Still deferred, and why
 
-- Exact permission key list (mirrors EDOSPMIS's `has_permission(key)` string
-  convention — the specific keys come with each module in Phase 6+).
-- Workflow *builder* UI (§45) — the engine (§10) ships first; a visual
-  drag-and-drop builder is real product-design work worth its own pass once
-  there's at least one real workflow running through the engine to build the
-  UI against.
-- Full AI feature set (§25) — one AI action ("Summarize case") end-to-end
-  first, to prove the human-in-the-loop pattern, before adding the other
-  seven.
-- Integrations API beyond the intake endpoint (§41) — versioned `/api/v1/*`
-  routes get added as real consumers need them, not speculatively.
+Resolved since Phase 1: the permission key list (22 keys, section 5), the full
+AI feature set (summaries, drafted communications and a tool-grounded
+assistant, section 11), and the integrations API — which now carries the
+public intake endpoint (section 8) and the inbound email-to-case webhook.
+
+Still deferred:
+
+- **Workflow builder UI.** The engine ships and runs; a visual builder is real
+  product-design work, and the seeded eight-stage workflow has not yet needed
+  changing by anyone. Stage definitions are versioned JSON, so a builder is a
+  UI over data that already exists.
+- **Platform admin console.** An honest placeholder at `/platform`. Fine at
+  two workspaces; it becomes the operational bottleneck the moment there is a
+  paying tenant to suspend or support.
+- **Plan entitlements and billing.** `tenants.plan` is currently a label
+  nothing reads. Enforcement should land before billing does, not after.
+- **Observability.** No error tracking or uptime monitoring, which is what
+  stops the availability and incident-SLA commitments in the brief's section 8
+  from being offered honestly.
 
 ---
 
@@ -364,13 +419,64 @@ displayed (card, table, detail page, notification — brief §16).
 7. **Dashboards** (§9), reports (§37).
 8. **AI assistant**, one action end-to-end (§11).
 9. **Public intake API** (§8) + first real website integration.
-10. Everything else in the brief (workflow builder UI, notification centre,
-    platform admin/subscriptions, integrations beyond intake) — sequenced
-    against actual need once the above is live and being used.
+10. **Requirements pass** (done, 26 Sep 2026): scheduled work, the
+    complainant as a record with automatic acknowledgement and closure
+    messages, member management, per-workspace rules, product-action
+    approvals, RCA summary sharing, email-to-case, complaint correction with
+    an audit trail, mobile navigation, and tests with CI. This is the step
+    that took the brief from "the workflow is built" to "every requirement is
+    met" — see section 15.
+11. Everything beyond the brief (workflow builder UI, platform admin and
+    subscriptions, observability) — sequenced against actual need. Section 13.
 
 This gets a genuinely usable, demoable product (steps 1–5) before touching
 AI, the public API, or any admin-configuration UI — matching the brief's own
 instruction not to start by generating hundreds of UI files.
+
+---
+
+## 15. Scheduled work — the part that runs when nobody is looking
+
+Everything above describes what happens while somebody is using the app. The
+brief's central promise is about what happens when nobody is: a Friday
+afternoon complaint must stop being invisible until Monday.
+
+Until the requirements pass there was no scheduler at all, which meant every
+time-based rule in the brief was inert. SLA reminders never fired. An overdue
+case escalated to nobody. Batch thresholds were evaluated only at the moment a
+complaint was logged, so three complaints arriving over two days crossed the
+48-hour threshold with nothing noticing — the window moves even when nothing
+is filed. Weekly and monthly reports existed as screens somebody had to
+remember to open.
+
+`/api/cron` (Vercel Cron: hourly, plus Monday and month-start schedules for
+reports) runs `lib/jobs/runner.ts` and `lib/jobs/reports.ts`.
+
+**Why the service-role client.** There is no signed-in user on a scheduled
+request, so no RLS policy could ever let the job read across tenants as
+itself. Every query is therefore explicitly scoped by `tenant_id`, and this is
+the one place besides public intake and invitations where that discipline is
+manual rather than enforced by the database.
+
+**Why a shared secret, and why it refuses without one.** The endpoint emails
+entire workspaces and purges personal data. An unauthenticated version of that
+is not something to leave ajar, so a missing `CRON_SECRET` fails closed rather
+than defaulting to open.
+
+**Why notifications are the de-duplication record.** Rather than a separate
+"last reminded at" column that could drift out of step with what was actually
+sent, the job looks for a matching notification inside the last 20 hours. The
+record of what was said is the record of what not to say again.
+
+**What the job deliberately does not chase.** A case flagged as pending
+information is waiting on the complainant, not on the team. It still shows as
+at-risk on screen, but nobody is chased for somebody else's silence.
+
+**Retention removes personal data, never the complaint.** The brief forbids
+deleting a complaint, and the quality record is the point of the system. What
+a retention period removes is the complainant's name, email and phone from
+closed cases past that period — which is what a retention obligation is
+actually about.
 
 ---
 
