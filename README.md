@@ -83,8 +83,9 @@ log in and explore rather than starting from an empty workspace:
 - [x] Brief gap-closure pass: audited against `crm-word/Complaint Management
       System.docx` and closed most of what was missing — product/SKU/batch/
       expiry fields, batch-pattern escalation (48h/72h/7-day thresholds,
-      §"Escalation procedures"), an in-app notification centre (no email
-      provider configured, so this is the honest working half of §6
+      §"Escalation procedures"), a notification centre (in-app + real email
+      via Resend, `lib/notify/email.ts` — verified live against Resend's own
+      sandbox address after RESEND_API_KEY was configured, satisfying §6
       "Notifications"), assignment, severity override with a recorded
       reason, a "pending information" flag, closure control (requires a
       verified CAPA + written confirmation before a case can close),

@@ -1,6 +1,7 @@
 import "server-only";
 
 import { createClient } from "@/lib/supabase/server";
+import { sendEmail } from "@/lib/notify/email";
 import { TABLES } from "@/lib/data/tables";
 
 export type Notification = {
@@ -33,23 +34,53 @@ export async function getUnreadCount(userId: string): Promise<number> {
 }
 
 /**
- * The in-app half of the brief's §6 "Notifications" requirement — no
- * transactional email provider is configured for this project, so this is
- * what actually fires today. Silently no-ops per recipient on failure
- * (never blocks the caller's real write — a missed notification is a lot
- * cheaper than a failed complaint save).
+ * Brief §6 "Notifications" — immediate, in-app and (now that RESEND_API_KEY
+ * is configured) real email. The in-app row is the reliable half: it's
+ * written first and unconditionally, and email sending happens after, one
+ * per recipient, best-effort — a bounced or slow email never blocks the
+ * caller's real write (a missed email is a lot cheaper than a failed
+ * complaint save), and a recipient with no email on file, or a provider
+ * outage, still gets the in-app notification either way.
  */
 export async function notifyUsers(tenantId: string, userIds: string[], message: string, complaintId?: string) {
-  if (userIds.length === 0) return;
+  const ids = [...new Set(userIds)];
+  if (ids.length === 0) return;
   const supabase = await createClient();
+
   await supabase.from(TABLES.notifications).insert(
-    [...new Set(userIds)].map((userId) => ({
+    ids.map((userId) => ({
       tenant_id: tenantId,
       user_id: userId,
       complaint_id: complaintId ?? null,
       message,
     })),
   );
+
+  const { data: recipients } = await supabase.from(TABLES.users).select("id, email, full_name").in("id", ids);
+  if (!recipients || recipients.length === 0) return;
+
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "");
+  const link = complaintId && siteUrl ? `${siteUrl}/complaints/${complaintId}` : null;
+  const html = [
+    `<p>${escapeHtml(message)}</p>`,
+    link ? `<p><a href="${link}">Open it in EDOS CRM</a></p>` : null,
+  ]
+    .filter(Boolean)
+    .join("");
+
+  await Promise.all(
+    recipients
+      .filter((r) => r.email)
+      .map((r) =>
+        sendEmail({ to: r.email as string, subject: `EDOS CRM: ${message}`, html }).catch(() => {
+          // Best-effort — the in-app notification above is already saved.
+        }),
+      ),
+  );
+}
+
+function escapeHtml(text: string): string {
+  return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
 /** Everyone in the tenant holding a given permission — used to notify
