@@ -2,10 +2,11 @@
 
 Multi-tenant complaint management / case workflow SaaS. See
 [ARCHITECTURE.md](./ARCHITECTURE.md) for the full system design and build
-sequence. Through Phase 4: tenants, users, org structure, RBAC, auth,
-complaints with an event log, and a data-driven workflow engine with a
-chevron stage stepper (ported from EDOSPMIS). No tasks, SLA engine or
-dashboards yet.
+sequence. Through Phase 5: tenants, users, org structure, RBAC, auth,
+complaints with an event log, a data-driven workflow engine with a chevron
+stage stepper (ported from EDOSPMIS), and tasks on a generic Kanban board
+that can optionally link to a complaint. No SLA engine, investigations/
+RCA/CAPA or dashboards yet.
 
 ## Setup
 
@@ -32,5 +33,9 @@ against that project (no local Supabase stack).
       tenant), stage-advance action, chevron stepper ported from EDOSPMIS
       (verified: no such component exists in edos-poa or edospoa-posv1 —
       those only use ChevronRight/Left as plain icons)
-- [ ] Phase 5 — tasks + generic board
+- [x] Phase 5 — tasks + generic board: `edoscrm_tasks` (fixed todo/
+      in_progress/done status, optional `complaint_id` link), the reusable
+      `components/board/board.tsx` Kanban component, task cards on the
+      complaint detail page
+- [ ] Phase 6 — SLA engine
 - [ ] everything after — see ARCHITECTURE.md §14

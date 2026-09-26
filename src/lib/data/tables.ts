@@ -20,4 +20,5 @@ export const TABLES = {
   workflowVersions: "edoscrm_workflow_versions",
   complaints: "edoscrm_complaints",
   complaintEvents: "edoscrm_complaint_events",
+  tasks: "edoscrm_tasks",
 } as const;

@@ -293,6 +293,11 @@ and one filter state so switching views never loses context (brief §8).
 
 ## 11. AI assistant — human-in-the-loop, server-only, fully audited
 
+**Branded `edos.ai`**, matching edos-poa's own assistant (page title,
+sidebar entry, "edos.ai works from your own records" disclaimer copy) — the
+name is already established product-wide, not a per-app choice to make
+fresh here.
+
 Every suggestion (`edoscrm_ai_suggestions`) records the prompt, context,
 response, and whether it was accepted or rejected — the interaction log
 (`edoscrm_ai_interactions`) is itself auditable (brief §27). The assistant

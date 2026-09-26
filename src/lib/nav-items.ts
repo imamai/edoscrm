@@ -1,11 +1,11 @@
 import type { LucideIcon } from "lucide-react";
-import { LayoutDashboard, MessageSquareWarning } from "lucide-react";
+import { LayoutDashboard, MessageSquareWarning, ListTodo } from "lucide-react";
 
 export type NavItem = { label: string; href: string; icon: LucideIcon };
 export type NavGroup = { label: string; items: NavItem[] };
 
 /**
- * Grouped from the start (EDOSPMIS pattern) — later phases (Tasks, Reports,
+ * Grouped from the start (EDOSPMIS pattern) — later phases (Reports,
  * Settings) add their own groups without restructuring `SidebarNav` itself,
  * only this list.
  */
@@ -17,5 +17,9 @@ export const NAV_GROUPS: NavGroup[] = [
   {
     label: "Complaints",
     items: [{ label: "All complaints", href: "/complaints", icon: MessageSquareWarning }],
+  },
+  {
+    label: "Tasks",
+    items: [{ label: "All tasks", href: "/tasks", icon: ListTodo }],
   },
 ];
