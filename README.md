@@ -6,9 +6,15 @@ sequence. Through Phase 9 (of the sequence in ARCHITECTURE.md §14): tenants,
 auth, RBAC, complaints with an event log, a data-driven workflow engine with
 a chevron stage stepper (ported from EDOSPMIS), tasks on a generic Kanban
 board, an SLA engine, Investigation/RCA/CAPA, a "what needs attention"
-dashboard, edos.ai (one action: summarize a case), and a public intake API.
-No reports, notification centre, or platform admin console yet — see
-ARCHITECTURE.md §14's "everything else" bucket.
+dashboard, edos.ai (one action: summarize a case), a public intake API,
+multi-channel intake tagging, a Reports page with brief-aligned KPIs, an
+in-app notification centre, product/batch tracking with pattern-based
+escalation, closure control, customer communication and compensation
+logging, CSV import/export, and role differentiation (Marketing Operations/
+Quality/Manufacturing/Sales/Finance/Leadership/Report Only). No platform
+admin console, workflow builder UI, or a member-management screen to assign
+people to the new roles yet — see ARCHITECTURE.md §14's "everything else"
+bucket and the CRM brief audit for what's still open.
 
 ## Setup
 
@@ -74,5 +80,25 @@ log in and explore rather than starting from an empty workspace:
         request from one IP and not affecting a different IP, and the
         resulting complaint rendering correctly in the internal UI with a
         "(via web)" timeline marker and reporter contact info.
-- [ ] Reports, notification centre, platform admin console, workflow
-      builder UI, and the rest of ARCHITECTURE.md §14's "everything else"
+- [x] Brief gap-closure pass: audited against `crm-word/Complaint Management
+      System.docx` and closed most of what was missing — product/SKU/batch/
+      expiry fields, batch-pattern escalation (48h/72h/7-day thresholds,
+      §"Escalation procedures"), an in-app notification centre (no email
+      provider configured, so this is the honest working half of §6
+      "Notifications"), assignment, severity override with a recorded
+      reason, a "pending information" flag, closure control (requires a
+      verified CAPA + written confirmation before a case can close),
+      customer communication log, compensation (hamper/credit note)
+      tracking, attachments (Supabase Storage), search/filter, CSV
+      import/export, KPI computation (§7 — capture rate flagged as not
+      measurable from inside this system alone), and named roles matching
+      the brief's §4 table. Verified live: created a T1 complaint, a second
+      complaint on the same batch (correctly fired the 48h-window
+      escalation and cross-linked both cases), searched/filtered/exported
+      the list, and confirmed every new nav destination renders with real
+      data. Not done: platform admin console, workflow builder UI, and a
+      member-management screen to actually assign people to the new roles
+      (they exist in the data model; nothing yet assigns non-admin members
+      to them).
+- [ ] Platform admin console, workflow builder UI, member-management UI,
+      and the rest of ARCHITECTURE.md §14's "everything else"

@@ -1,9 +1,15 @@
 @import "tailwindcss";
 
 /**
- * Minimal token set for the Phase 2 foundation (auth + empty shell only).
- * The real design system is Phase 5 (ARCHITECTURE.md §14) — this exists so
- * the auth pages and shell aren't unstyled, not as the final visual language.
+ * Design tokens, ported from EDOSPMIS — same navy brand family (per explicit
+ * instruction to match EDOSPMIS's identity rather than keep a distinct
+ * color), same persistent dark sidebar shell, same semantic status colors
+ * kept separate from brand. Unlike EDOSPMIS, CRM keeps its light/dark
+ * toggle: brand/brand-dark get a lighter, dark-mode-legible navy variant
+ * below (EDOSPMIS never needs one — its content area has no dark theme),
+ * while brand-darker/-mid/-soft stay constant because they only dress the
+ * sidebar rail, which — like EDOSPMIS's — is always a dark shell regardless
+ * of the content area's theme.
  */
 @theme {
   --color-background: #f7f8fb;
@@ -11,8 +17,15 @@
   --color-border: #e2e5ec;
   --color-ink: #12141c;
   --color-ink-faint: #6b7080;
-  --color-brand: #4338ca;
+
+  --color-brand: #1d3557;
+  --color-brand-dark: #12233b;
+  --color-brand-darker: #0b1626;
+  --color-brand-mid: #2f4d78;
+  --color-brand-soft: #e8edf5;
+  --color-brand-tint: #f2f5fa;
   --color-brand-ink: #ffffff;
+
   --color-good: #16803c;
   --color-warning: #b45309;
   --color-danger: #b91c1c;
@@ -28,7 +41,8 @@
     --color-border: #262a35;
     --color-ink: #f3f4f7;
     --color-ink-faint: #8b8fa3;
-    --color-brand: #6366f1;
+    --color-brand: #5b82b8;
+    --color-brand-dark: #3f5f8f;
     --color-brand-ink: #0b0c10;
   }
 }
@@ -39,7 +53,8 @@
   --color-border: #262a35;
   --color-ink: #f3f4f7;
   --color-ink-faint: #8b8fa3;
-  --color-brand: #6366f1;
+  --color-brand: #5b82b8;
+  --color-brand-dark: #3f5f8f;
   --color-brand-ink: #0b0c10;
 }
 

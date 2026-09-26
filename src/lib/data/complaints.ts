@@ -5,6 +5,17 @@ import { TABLES } from "@/lib/data/tables";
 
 export type Severity = "T1" | "T2" | "T3";
 
+/**
+ * Every way a complaint can reach this tenant, all converging on this one
+ * table (ARCHITECTURE.md §7/§8). `web` is the one fully automated channel —
+ * written only by the public /api/v1/intake endpoint. The rest are
+ * staff-attested: an agent logging that a complaint came in by phone, email,
+ * WhatsApp or in person, ahead of any of those channels being automated
+ * individually (the ARCHITECTURE.md §7 "ceiling" schema's dedicated
+ * edoscrm_complaint_channels/communications tables stay deferred).
+ */
+export type Channel = "internal" | "web" | "phone" | "email" | "whatsapp" | "walk_in";
+
 export type Complaint = {
   id: string;
   tenant_id: string;
@@ -19,10 +30,32 @@ export type Complaint = {
   created_by: string | null;
   created_at: string;
   closed_at: string | null;
-  source: "internal" | "web";
+  source: Channel;
   reporter_name: string | null;
   reporter_email: string | null;
   reporter_phone: string | null;
+  // Product/batch fields (brief §6 "Required fields") — the data every
+  // batch-grouping, escalation-pattern and "related complaints" feature
+  // reads off. All nullable: not every complaint concerns a specific batch.
+  category: string | null;
+  product_name: string | null;
+  sku: string | null;
+  batch_number: string | null;
+  production_date: string | null;
+  expiry_date: string | null;
+  purchase_details: string | null;
+  pending_information: boolean;
+  pending_information_reason: string | null;
+  severity_override_reason: string | null;
+  closure_note: string | null;
+};
+
+export type ComplaintFilters = {
+  q?: string;
+  status?: string;
+  severity?: Severity;
+  channel?: Channel;
+  category?: string;
 };
 
 export type ComplaintEvent = {
@@ -34,12 +67,43 @@ export type ComplaintEvent = {
   created_at: string;
 };
 
-export async function getComplaints(tenantId: string): Promise<Complaint[]> {
+export async function getComplaints(tenantId: string, filters: ComplaintFilters = {}): Promise<Complaint[]> {
+  const supabase = await createClient();
+  let query = supabase.from(TABLES.complaints).select("*").eq("tenant_id", tenantId);
+
+  if (filters.status) query = query.eq("current_stage_key", filters.status);
+  if (filters.severity) query = query.eq("severity", filters.severity);
+  if (filters.channel) query = query.eq("source", filters.channel);
+  if (filters.category) query = query.eq("category", filters.category);
+  if (filters.q) {
+    const term = filters.q.trim();
+    if (term) {
+      // case_number/title/reporter_name/sku/batch_number — the fields the
+      // brief's §6 "Search and filtering" requirement names, minus product
+      // (title usually carries it in practice; a dedicated product filter
+      // can follow once real usage shows it's needed).
+      query = query.or(
+        `case_number.ilike.%${term}%,title.ilike.%${term}%,reporter_name.ilike.%${term}%,sku.ilike.%${term}%,batch_number.ilike.%${term}%`,
+      );
+    }
+  }
+
+  const { data } = await query.order("created_at", { ascending: false });
+  return data ?? [];
+}
+
+/** Other open complaints sharing the same SKU + batch — the brief's
+ * "related product/batch complaints" visibility and pattern-escalation
+ * rules both read off this one query. */
+export async function getBatchSiblings(tenantId: string, sku: string, batchNumber: string, excludeId: string): Promise<Complaint[]> {
   const supabase = await createClient();
   const { data } = await supabase
     .from(TABLES.complaints)
     .select("*")
     .eq("tenant_id", tenantId)
+    .eq("sku", sku)
+    .eq("batch_number", batchNumber)
+    .neq("id", excludeId)
     .order("created_at", { ascending: false });
   return data ?? [];
 }

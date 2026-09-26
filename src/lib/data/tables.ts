@@ -26,4 +26,8 @@ export const TABLES = {
   rootCauses: "edoscrm_root_causes",
   capas: "edoscrm_capas",
   aiInteractions: "edoscrm_ai_interactions",
+  complaintAttachments: "edoscrm_complaint_attachments",
+  complaintCommunications: "edoscrm_complaint_communications",
+  complaintCompensations: "edoscrm_complaint_compensations",
+  notifications: "edoscrm_notifications",
 } as const;

@@ -3,15 +3,34 @@
 import { createClient } from "@/lib/supabase/server";
 import { resolveSession } from "@/lib/data/session";
 import { getDefaultWorkflowVersion } from "@/lib/data/workflows";
+import { getBatchSiblings, type Severity } from "@/lib/data/complaints";
+import { computeBatchEscalation } from "@/lib/domain/escalation";
+import { notifyUsers, usersWithPermission } from "@/lib/data/notifications";
 import { TABLES } from "@/lib/data/tables";
+
+function orNull(formData: FormData, key: string): string | null {
+  const value = String(formData.get(key) ?? "").trim();
+  return value || null;
+}
 
 export async function createComplaint(formData: FormData) {
   const session = await resolveSession();
   if (session.kind !== "ok") return { ok: false as const, error: "Your session has expired." };
 
   const title = String(formData.get("title") ?? "").trim();
-  const description = String(formData.get("description") ?? "").trim();
-  const severity = String(formData.get("severity") ?? "T3");
+  const description = orNull(formData, "description");
+  const severity = String(formData.get("severity") ?? "T3") as Severity;
+  const channel = String(formData.get("channel") ?? "internal");
+  const category = orNull(formData, "category");
+  const reporterName = orNull(formData, "reporter_name");
+  const reporterEmail = orNull(formData, "reporter_email");
+  const reporterPhone = orNull(formData, "reporter_phone");
+  const productName = orNull(formData, "product_name");
+  const sku = orNull(formData, "sku");
+  const batchNumber = orNull(formData, "batch_number");
+  const productionDate = orNull(formData, "production_date");
+  const expiryDate = orNull(formData, "expiry_date");
+  const purchaseDetails = orNull(formData, "purchase_details");
 
   if (!title) return { ok: false as const, error: "Give the complaint a title." };
 
@@ -34,8 +53,19 @@ export async function createComplaint(formData: FormData) {
       tenant_id: session.tenant.id,
       case_number: caseNumber,
       title,
-      description: description || null,
+      description,
       severity,
+      source: channel,
+      category,
+      reporter_name: reporterName,
+      reporter_email: reporterEmail,
+      reporter_phone: reporterPhone,
+      product_name: productName,
+      sku,
+      batch_number: batchNumber,
+      production_date: productionDate,
+      expiry_date: expiryDate,
+      purchase_details: purchaseDetails,
       workflow_version_id: workflow.id,
       current_stage_key: firstStage,
       created_by: session.user.id,
@@ -52,6 +82,31 @@ export async function createComplaint(formData: FormData) {
     event_type: "complaint.created",
     payload: { stage: firstStage, severity },
   });
+
+  // Brief §"Required notifications": T1 needs Head of Marketing + Quality
+  // notified within 1 hour — fired immediately, since nothing here is
+  // scheduled. Batch pattern check runs whenever both SKU and batch are
+  // known, matching the brief's escalation-procedure thresholds.
+  const notifyTargets = new Set<string>();
+  if (severity === "T1") {
+    const [marketingOps, quality] = await Promise.all([
+      usersWithPermission(session.tenant.id, "complaints.manage"),
+      usersWithPermission(session.tenant.id, "investigations.manage"),
+    ]);
+    for (const id of [...marketingOps, ...quality]) notifyTargets.add(id);
+  }
+  if (notifyTargets.size > 0) {
+    await notifyUsers(session.tenant.id, [...notifyTargets], `T1 complaint ${caseNumber}: ${title}`, complaint.id);
+  }
+
+  if (sku && batchNumber) {
+    const siblings = await getBatchSiblings(session.tenant.id, sku, batchNumber, complaint.id);
+    const escalation = computeBatchEscalation(siblings, severity);
+    if (escalation.level !== "none") {
+      const escalationTargets = await usersWithPermission(session.tenant.id, "complaints.manage");
+      await notifyUsers(session.tenant.id, escalationTargets, `${caseNumber} (${sku}/${batchNumber}): ${escalation.message}`, complaint.id);
+    }
+  }
 
   return { ok: true as const, id: complaint.id as string };
 }
