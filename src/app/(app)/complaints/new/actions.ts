@@ -6,7 +6,30 @@ import { getDefaultWorkflowVersion } from "@/lib/data/workflows";
 import { getBatchSiblings, type Severity } from "@/lib/data/complaints";
 import { computeBatchEscalation } from "@/lib/domain/escalation";
 import { notifyUsers, usersWithPermission } from "@/lib/data/notifications";
+import { suggestComplaintDetails, type ComplaintSuggestion } from "@/lib/ai/suggest";
 import { TABLES } from "@/lib/data/tables";
+
+export interface SuggestState {
+  error: string | null;
+  suggestion: ComplaintSuggestion | null;
+}
+
+export async function suggestComplaintFromText(_prev: SuggestState, form: FormData): Promise<SuggestState> {
+  const session = await resolveSession();
+  if (session.kind !== "ok") return { error: "Your session has expired.", suggestion: null };
+
+  const text = String(form.get("free_text") ?? "").trim();
+  if (!text) return { error: "Describe what happened first.", suggestion: null };
+
+  try {
+    const suggestion = await suggestComplaintDetails(text, [
+      "Product quality", "Foreign object", "Packaging", "Labelling", "Delivery / logistics", "Customer service", "Pricing / billing", "Other",
+    ]);
+    return { error: null, suggestion };
+  } catch {
+    return { error: "Couldn't get a suggestion right now — fill it in yourself.", suggestion: null };
+  }
+}
 
 function orNull(formData: FormData, key: string): string | null {
   const value = String(formData.get(key) ?? "").trim();

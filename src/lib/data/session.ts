@@ -3,6 +3,11 @@ import "server-only";
 import { createClient } from "@/lib/supabase/server";
 import { TABLES } from "@/lib/data/tables";
 
+export type TenantBranding = {
+  logo_url?: string | null;
+  accent_color?: string | null;
+};
+
 export type SessionTenant = {
   id: string;
   name: string;
@@ -11,6 +16,7 @@ export type SessionTenant = {
   status: string;
   timezone: string;
   currency: string;
+  branding: TenantBranding;
 };
 
 export type SessionUser = {
@@ -72,7 +78,7 @@ export async function resolveSession(): Promise<SessionResult> {
 
   const { data: tenant } = await supabase
     .from(TABLES.tenants)
-    .select("id, name, slug, plan, status, timezone, currency")
+    .select("id, name, slug, plan, status, timezone, currency, branding")
     .eq("id", tenantId)
     .maybeSingle();
 

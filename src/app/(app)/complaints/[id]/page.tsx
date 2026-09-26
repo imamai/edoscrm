@@ -33,6 +33,7 @@ import { ClosureControl } from "./closure-control";
 import { BatchEscalationBanner } from "./batch-escalation-banner";
 import { AttachmentsPanel } from "./attachments-panel";
 import { CommunicationLog } from "./communication-log";
+import { modelAvailable } from "@/lib/ai/suggest";
 import { CompensationPanel } from "./compensation-panel";
 import { formatDate } from "@/lib/utils";
 
@@ -203,7 +204,7 @@ export default async function ComplaintDetailPage({ params }: { params: Promise<
       <RootCauseSection complaintId={complaint.id} rootCause={quality.rootCause} canManage={canManageInvestigations} />
       <CapaSection complaintId={complaint.id} capa={quality.capa} canManage={canManageInvestigations} />
 
-      <CommunicationLog complaintId={complaint.id} communications={communications} />
+      <CommunicationLog complaintId={complaint.id} communications={communications} aiAvailable={modelAvailable()} />
 
       <CompensationPanel
         complaintId={complaint.id}
