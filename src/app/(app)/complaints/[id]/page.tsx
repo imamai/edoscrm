@@ -124,33 +124,38 @@ export default async function ComplaintDetailPage({ params }: { params: Promise<
   return (
     <div className="flex flex-col gap-6">
       {/* Command-centre header — case identity, severity and where it stands,
-          all above the fold before anything else (ARCHITECTURE.md's "what
-          happened, who owns it, what's next" philosophy). */}
-      <div className="flex flex-wrap items-start justify-between gap-4 rounded-xl border border-border bg-surface p-4">
-        <div className="flex flex-col gap-1">
-          <p className="text-xs font-semibold uppercase tracking-wide text-ink-faint">{complaint.case_number}</p>
-          <h1 className="text-xl font-semibold text-ink">{complaint.title}</h1>
-          <p className="text-sm text-ink-faint">Opened {formatDate(complaint.created_at)}</p>
-          {(complaint.reporter_name || complaint.reporter_email || complaint.reporter_phone) && (
-            <p className="text-sm text-ink-faint">
-              Reported by {complaint.reporter_name ?? "unknown"}
-              {complaint.reporter_email && ` · ${complaint.reporter_email}`}
-              {complaint.reporter_phone && ` · ${complaint.reporter_phone}`}
-            </p>
-          )}
-          {productFields.length > 0 && <p className="text-sm text-ink-faint">{productFields.join(" · ")}</p>}
-        </div>
-        <div className="flex flex-col items-end gap-2">
-          <div className="flex items-center gap-2">
-            <SeverityBadge severity={complaint.severity} />
-            {slaStatus && <SlaBadge status={slaStatus} />}
+          pinned while scrolling a long case (ARCHITECTURE.md's "what
+          happened, who owns it, what's next" philosophy, kept in view the
+          whole way down). -mx-6 cancels <main>'s own p-6 so the bar spans
+          edge to edge within the content column; z-30 stays under any
+          modal's z-50. */}
+      <div className="sticky top-0 z-30 -mx-6 flex flex-col gap-3 border-b border-border bg-background/95 px-6 py-3 backdrop-blur-sm">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="flex flex-col gap-1">
+            <p className="text-xs font-semibold uppercase tracking-wide text-ink-faint">{complaint.case_number}</p>
+            <h1 className="text-xl font-semibold text-ink">{complaint.title}</h1>
+            <p className="text-sm text-ink-faint">Opened {formatDate(complaint.created_at)}</p>
+            {(complaint.reporter_name || complaint.reporter_email || complaint.reporter_phone) && (
+              <p className="text-sm text-ink-faint">
+                Reported by {complaint.reporter_name ?? "unknown"}
+                {complaint.reporter_email && ` · ${complaint.reporter_email}`}
+                {complaint.reporter_phone && ` · ${complaint.reporter_phone}`}
+              </p>
+            )}
+            {productFields.length > 0 && <p className="text-sm text-ink-faint">{productFields.join(" · ")}</p>}
           </div>
-          <ChannelBadge channel={complaint.source} />
-          {canOverrideSeverity && <SeverityOverride complaintId={complaint.id} severity={complaint.severity} />}
+          <div className="flex flex-col items-end gap-2">
+            <div className="flex items-center gap-2">
+              <SeverityBadge severity={complaint.severity} />
+              {slaStatus && <SlaBadge status={slaStatus} />}
+            </div>
+            <ChannelBadge channel={complaint.source} />
+            {canOverrideSeverity && <SeverityOverride complaintId={complaint.id} severity={complaint.severity} />}
+          </div>
         </div>
-      </div>
 
-      <PendingInformationToggle complaintId={complaint.id} pending={complaint.pending_information} reason={complaint.pending_information_reason} />
+        <PendingInformationToggle complaintId={complaint.id} pending={complaint.pending_information} reason={complaint.pending_information_reason} />
+      </div>
 
       <BatchEscalationBanner escalation={escalation} siblings={batchSiblings} />
 
