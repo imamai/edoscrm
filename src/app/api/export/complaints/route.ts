@@ -6,11 +6,18 @@ import { getComplaints, type Channel, type Severity } from "@/lib/data/complaint
 /** Brief §6 "Should — Export": filtered data to Excel/PDF without losing
  * field labels. CSV opens natively in Excel with headers intact, which is
  * what "without losing field labels" actually asks for — a real .xlsx
- * binary would need a library with no other use in this codebase yet. */
+ * binary would need a library with no other use in this codebase yet.
+ *
+ * Same CSV-formula-injection guard as EDOSPMIS's lib/export/csv.ts: a cell
+ * starting with = + - or @ gets an apostrophe prefix, or a complainant/
+ * product name typed as `=HYPERLINK(...)` would run as a live formula the
+ * moment someone opens the file in Excel. Found and fixed as part of this
+ * security pass — the original version here only escaped quotes/commas. */
 function toCsvValue(value: unknown): string {
   if (value === null || value === undefined) return "";
-  const s = String(value);
-  return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  let s = String(value);
+  if (/^[=+\-@]/.test(s)) s = `'${s}`;
+  return /[",\r\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 }
 
 export async function GET(request: NextRequest) {
@@ -36,7 +43,9 @@ export async function GET(request: NextRequest) {
     "pending_information", "created_at", "closed_at",
   ];
   const rows = complaints.map((c) => headers.map((h) => toCsvValue((c as unknown as Record<string, unknown>)[h])).join(","));
-  const csv = [headers.join(","), ...rows].join("\n");
+  // Leading BOM so Excel reads this as UTF-8 instead of Windows-1252 — an
+  // accented complainant name would otherwise arrive as mojibake.
+  const csv = "﻿" + [headers.join(","), ...rows].join("\r\n");
 
   return new NextResponse(csv, {
     headers: {
