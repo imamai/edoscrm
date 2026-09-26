@@ -1,0 +1,50 @@
+@import "tailwindcss";
+
+/**
+ * Minimal token set for the Phase 2 foundation (auth + empty shell only).
+ * The real design system is Phase 5 (ARCHITECTURE.md §14) — this exists so
+ * the auth pages and shell aren't unstyled, not as the final visual language.
+ */
+@theme {
+  --color-background: #f7f8fb;
+  --color-surface: #ffffff;
+  --color-border: #e2e5ec;
+  --color-ink: #12141c;
+  --color-ink-faint: #6b7080;
+  --color-brand: #4338ca;
+  --color-brand-ink: #ffffff;
+  --color-good: #16803c;
+  --color-warning: #b45309;
+  --color-danger: #b91c1c;
+  --color-info: #1d4ed8;
+
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --color-background: #0b0c10;
+    --color-surface: #14161d;
+    --color-border: #262a35;
+    --color-ink: #f3f4f7;
+    --color-ink-faint: #8b8fa3;
+    --color-brand: #6366f1;
+    --color-brand-ink: #0b0c10;
+  }
+}
+
+:root[data-theme="dark"] {
+  --color-background: #0b0c10;
+  --color-surface: #14161d;
+  --color-border: #262a35;
+  --color-ink: #f3f4f7;
+  --color-ink-faint: #8b8fa3;
+  --color-brand: #6366f1;
+  --color-brand-ink: #0b0c10;
+}
+
+body {
+  background: var(--color-background);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+}
