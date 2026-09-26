@@ -63,3 +63,33 @@ export async function getCompensations(complaintId: string): Promise<Compensatio
     .order("created_at", { ascending: false });
   return data ?? [];
 }
+
+export type TenantCompensation = Compensation & { complaint_id: string; case_number: string; title: string };
+
+/** Every compensation request tenant-wide, for the Reports page — brief §9
+ * "trade credit notes must... remain traceable to the complaint case", so
+ * this always carries the case number and title alongside the record. */
+export async function getAllCompensations(tenantId: string): Promise<TenantCompensation[]> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from(TABLES.complaintCompensations)
+    .select("id, complaint_id, type, amount_cents, status, requested_by, approved_by, fulfilled_at, created_at, edoscrm_complaints(case_number, title)")
+    .eq("tenant_id", tenantId)
+    .order("created_at", { ascending: false });
+  return (data ?? []).map((r) => {
+    const complaint = r.edoscrm_complaints as unknown as { case_number: string; title: string } | null;
+    return {
+      id: r.id,
+      complaint_id: r.complaint_id,
+      case_number: complaint?.case_number ?? "",
+      title: complaint?.title ?? "",
+      type: r.type,
+      amount_cents: r.amount_cents,
+      status: r.status,
+      requested_by: r.requested_by,
+      approved_by: r.approved_by,
+      fulfilled_at: r.fulfilled_at,
+      created_at: r.created_at,
+    };
+  });
+}

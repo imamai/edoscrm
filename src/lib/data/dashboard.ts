@@ -25,6 +25,9 @@ export type DashboardData = {
   tasksOverdueCount: number;
   attention: AttentionItem[];
   recentEvents: RecentEvent[];
+  /** All complaints — the dashboard's chart row builds its own series from
+   * this rather than a second identical query. */
+  complaints: Complaint[];
 };
 
 /**
@@ -100,5 +103,6 @@ export async function getDashboardData(tenantId: string): Promise<DashboardData>
     tasksOverdueCount,
     attention: attention.slice(0, 8),
     recentEvents,
+    complaints,
   };
 }

@@ -1,181 +1,102 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { redirect } from "next/navigation";
+import { ChevronRight, Gauge, Layers, Radio, Gift } from "lucide-react";
 import { resolveSession } from "@/lib/data/session";
-import { getComplaints, type Channel } from "@/lib/data/complaints";
-import { getDefaultWorkflowVersion } from "@/lib/data/workflows";
+import { getComplaints } from "@/lib/data/complaints";
 import { getSlaRules } from "@/lib/data/sla";
 import { computeSlaStatus } from "@/lib/domain/sla";
-import { StatCard } from "@/components/dashboard/stat-card";
-import { ChannelBadge } from "@/components/complaints/channel-badge";
-import { computeKpis } from "@/lib/data/kpis";
+import { getAllCompensations } from "@/lib/data/complaint-extras";
 
 export const metadata: Metadata = { title: "Reports" };
 
+const REPORTS = [
+  { key: "pipeline", title: "Pipeline & severity", description: "Every complaint by stage and by T1/T2/T3 severity.", icon: Layers },
+  { key: "channels", title: "Channels", description: "Where complaints actually come from — internal, web, phone, email, WhatsApp, walk-in.", icon: Radio },
+  { key: "kpis", title: "Quality KPIs", description: "The brief's §7 KPI table: acknowledgement SLA, closed-loop rate, RCA SLA, CAPA on-time, repeat issues.", icon: Gauge },
+  { key: "compensation", title: "Compensation", description: "Every hamper or credit note requested, its status, and the case it's traceable to.", icon: Gift },
+] as const;
+
 /**
- * First cut of Reports (ARCHITECTURE.md §14 step 7) — the totals a manager
- * asks for first: volume, where it's stuck, how it's breaching SLA, and
- * which channel it arrived on. No period filter yet (no ReportPeriod
- * infrastructure exists in this codebase); everything below is all-time.
- * A natural next step once there's more than one report worth comparing
- * periods against.
+ * Gallery index mirroring EDOSPMIS's own Reports page (a card per report,
+ * opened to read the detail — not one page trying to be every report at
+ * once) and edos-poa's "at a glance" strip underneath. Trend charts over
+ * time live on Analytics instead — this page is for reading a specific,
+ * complete answer, not for watching a line move.
  */
 export default async function ReportsPage() {
   const session = await resolveSession();
   if (session.kind !== "ok") redirect("/");
 
-  const [complaints, workflow, slaRules, kpis] = await Promise.all([
+  const [complaints, slaRules, compensations] = await Promise.all([
     getComplaints(session.tenant.id),
-    getDefaultWorkflowVersion(session.tenant.id),
     getSlaRules(session.tenant.id),
-    computeKpis(session.tenant.id),
+    getAllCompensations(session.tenant.id),
   ]);
 
-  const stages = workflow?.definition.stages ?? [];
-  const stageLabel = new Map(stages.map((s) => [s.key, s.label]));
   const open = complaints.filter((c) => c.current_stage_key !== "closed");
-  const closed = complaints.length - open.length;
-
   let breached = 0;
   for (const c of open) {
     const rule = slaRules[c.severity];
     if (!rule) continue;
-    const status = computeSlaStatus({
-      createdAt: c.created_at,
-      currentStageKey: c.current_stage_key,
-      acknowledgementMinutes: rule.acknowledgement_minutes,
-      rcaMinutes: rule.rca_minutes,
-    });
+    const status = computeSlaStatus({ createdAt: c.created_at, currentStageKey: c.current_stage_key, acknowledgementMinutes: rule.acknowledgement_minutes, rcaMinutes: rule.rca_minutes });
     if (status.level === "danger") breached++;
   }
-
-  const byStage = new Map<string, number>();
-  for (const c of complaints) byStage.set(c.current_stage_key, (byStage.get(c.current_stage_key) ?? 0) + 1);
-
-  const bySeverity = { T1: 0, T2: 0, T3: 0 };
-  for (const c of complaints) bySeverity[c.severity]++;
-
-  const byChannel = new Map<Channel, number>();
-  for (const c of complaints) byChannel.set(c.source, (byChannel.get(c.source) ?? 0) + 1);
-  const channelOrder: Channel[] = ["web", "phone", "email", "whatsapp", "walk_in", "internal"];
-
-  const maxStageCount = Math.max(1, ...byStage.values());
-  const maxChannelCount = Math.max(1, ...byChannel.values());
+  const pendingCompensation = compensations.filter((c) => c.status === "requested").length;
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-5">
       <div>
         <h1 className="text-xl font-semibold text-ink">Reports</h1>
-        <p className="text-sm text-ink-faint">All-time totals across every complaint, whichever channel it arrived on.</p>
+        <p className="mt-1 text-sm text-ink-faint">
+          Open a report to read it in full. Looking for trend charts instead? Try{" "}
+          <Link href="/analytics" className="text-brand hover:underline">
+            Analytics
+          </Link>
+          .
+        </p>
       </div>
 
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-        <StatCard label="Total complaints" value={complaints.length} />
-        <StatCard label="Open" value={open.length} />
-        <StatCard label="Closed" value={closed} />
-        <StatCard label="SLA breached" value={breached} tone={breached > 0 ? "danger" : "neutral"} />
-      </div>
-
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <div className="rounded-xl border border-border bg-surface p-4">
-          <h2 className="mb-3 text-sm font-semibold text-ink">By stage</h2>
-          {stages.length === 0 ? (
-            <p className="text-sm text-ink-faint">No workflow configured yet.</p>
-          ) : (
-            <div className="flex flex-col gap-2">
-              {stages.map((s) => {
-                const count = byStage.get(s.key) ?? 0;
-                return (
-                  <div key={s.key} className="flex items-center gap-3">
-                    <span className="w-28 shrink-0 truncate text-sm text-ink-faint">{s.label}</span>
-                    <div className="h-2 flex-1 overflow-hidden rounded-full bg-background">
-                      <div className="h-full rounded-full bg-brand" style={{ width: `${(count / maxStageCount) * 100}%` }} />
-                    </div>
-                    <span className="w-6 shrink-0 text-right text-sm tabular-nums text-ink">{count}</span>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-
-        <div className="rounded-xl border border-border bg-surface p-4">
-          <h2 className="mb-3 text-sm font-semibold text-ink">By severity</h2>
-          <div className="flex flex-col gap-2">
-            {(["T1", "T2", "T3"] as const).map((sev) => (
-              <div key={sev} className="flex items-center justify-between text-sm">
-                <span className="text-ink-faint">{sev}</span>
-                <span className="tabular-nums text-ink">{bySeverity[sev]}</span>
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+        {REPORTS.map((r) => {
+          const Icon = r.icon;
+          return (
+            <Link
+              key={r.key}
+              href={`/reports/${r.key}`}
+              className="group flex items-start gap-3 rounded-xl border border-border bg-surface p-4 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-brand/40 hover:shadow-md"
+            >
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand/10 text-brand transition-transform duration-200 group-hover:scale-110">
+                <Icon className="h-4.5 w-4.5" />
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-semibold text-ink">{r.title}</p>
+                <p className="mt-0.5 text-xs text-ink-faint">{r.description}</p>
               </div>
-            ))}
-          </div>
-        </div>
+              <ChevronRight className="mt-1 h-4 w-4 shrink-0 text-ink-faint transition-transform duration-200 group-hover:translate-x-0.5 group-hover:text-brand" />
+            </Link>
+          );
+        })}
       </div>
 
-      <div className="rounded-xl border border-border bg-surface p-4">
-        <h2 className="mb-1 text-sm font-semibold text-ink">Brief §7 KPIs</h2>
-        <p className="mb-3 text-xs text-ink-faint">
-          Capture rate can&rsquo;t be computed from inside this system alone — it would need an independent count of
-          complaints actually received to compare against. Acknowledgement SLA reads current live status, not a
-          separately-recorded acknowledgement timestamp.
-        </p>
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-          <KpiTile label="Capture rate" value={kpis.captureRate} note="Not measurable here" />
-          <KpiTile label="Acknowledgement SLA" value={kpis.acknowledgementSlaPct} target={100} />
-          <KpiTile label="Closed-loop rate" value={kpis.closedLoopPct} target={85} />
-          <KpiTile label="RCA SLA (T1/T2)" value={kpis.rcaSlaPct} target={100} />
-          <KpiTile label="CAPA on-time" value={kpis.capaOnTimePct} target={100} />
-          <KpiTile label="Repeat issue rate" value={kpis.repeatIssuePct} lowerIsBetter />
-        </div>
-      </div>
-
-      <div className="rounded-xl border border-border bg-surface p-4">
-        <h2 className="mb-3 text-sm font-semibold text-ink">By channel</h2>
-        <p className="mb-3 text-xs text-ink-faint">
-          Every complaint converges on this one workspace regardless of how it arrived — this is the split.
-        </p>
-        <div className="flex flex-col gap-2">
-          {channelOrder
-            .filter((ch) => (byChannel.get(ch) ?? 0) > 0)
-            .map((ch) => {
-              const count = byChannel.get(ch) ?? 0;
-              return (
-                <div key={ch} className="flex items-center gap-3">
-                  <ChannelBadge channel={ch} className="w-28 shrink-0" />
-                  <div className="h-2 flex-1 overflow-hidden rounded-full bg-background">
-                    <div className="h-full rounded-full bg-brand" style={{ width: `${(count / maxChannelCount) * 100}%` }} />
-                  </div>
-                  <span className="w-6 shrink-0 text-right text-sm tabular-nums text-ink">{count}</span>
-                </div>
-              );
-            })}
-          {complaints.length === 0 && <p className="text-sm text-ink-faint">No complaints logged yet.</p>}
+      <div className="rounded-xl border border-border bg-surface p-5">
+        <p className="text-sm font-semibold text-ink">All time at a glance</p>
+        <div className="mt-3 grid grid-cols-2 gap-x-6 gap-y-4 sm:grid-cols-4">
+          <Glance label="Total complaints" value={String(complaints.length)} />
+          <Glance label="Open" value={String(open.length)} />
+          <Glance label="SLA breached" value={String(breached)} />
+          <Glance label="Compensation pending" value={String(pendingCompensation)} />
         </div>
       </div>
     </div>
   );
 }
 
-function KpiTile({
-  label,
-  value,
-  target,
-  note,
-  lowerIsBetter,
-}: {
-  label: string;
-  value: number | null;
-  target?: number;
-  note?: string;
-  lowerIsBetter?: boolean;
-}) {
-  const onTarget = value !== null && target !== undefined && (lowerIsBetter ? value <= target : value >= target);
+function Glance({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex flex-col gap-1 rounded-lg border border-border p-3">
-      <p className="text-xs font-medium text-ink-faint">{label}</p>
-      <p className={`text-xl font-semibold tabular-nums ${value === null ? "text-ink-faint" : onTarget ? "text-good" : "text-ink"}`}>
-        {value === null ? "—" : `${value}%`}
-      </p>
-      <p className="text-[11px] text-ink-faint">{note ?? (target !== undefined ? `Target ${lowerIsBetter ? "≤" : "≥"} ${target}%` : "Trend")}</p>
+    <div>
+      <p className="text-xs text-ink-faint">{label}</p>
+      <p className="tnum mt-0.5 text-lg font-semibold text-ink">{value}</p>
     </div>
   );
 }
