@@ -130,7 +130,9 @@ export default async function ComplaintDetailPage({ params }: { params: Promise<
           whole way down). -mx-6 cancels <main>'s own p-6 so the bar spans
           edge to edge within the content column; z-30 stays under any
           modal's z-50. */}
-      <div className="sticky top-0 z-30 -mx-6 flex flex-col gap-3 border-b border-border bg-background/95 px-6 py-3 backdrop-blur-sm">
+      {/* top-14 on a phone clears the mobile nav bar, which is itself sticky
+          at the top of the viewport; from md: there is no bar to clear. */}
+      <div className="sticky top-14 z-30 -mx-4 flex flex-col gap-3 border-b border-border bg-background/95 px-4 py-3 backdrop-blur-sm md:top-0 md:-mx-6 md:px-6">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="flex flex-col gap-1">
             <BackLink href="/complaints" label="Complaints" />

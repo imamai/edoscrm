@@ -52,6 +52,18 @@ export type Complaint = {
   pending_information_reason: string | null;
   severity_override_reason: string | null;
   closure_note: string | null;
+  /** The complainant as a record. Null for an anonymous report with neither
+   * an email nor a phone number — a real case, but not a person we can file. */
+  contact_id: string | null;
+  // Stored moments, not derived state. Every time-based KPI reads these, which
+  // is what lets a figure be reported for a past period instead of only for
+  // right now.
+  acknowledged_at: string | null;
+  resolved_at: string | null;
+  complainant_informed_at: string | null;
+  satisfaction_rating: number | null;
+  satisfaction_comment: string | null;
+  satisfaction_at: string | null;
 };
 
 export type ComplaintFilters = {

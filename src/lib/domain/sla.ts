@@ -19,6 +19,14 @@ export function computeSlaStatus(params: {
   currentStageKey: string;
   acknowledgementMinutes: number;
   rcaMinutes: number | null;
+  /** The brief gives T2 a separate "issue resolution plan within 48 hours"
+   * deadline, distinct from RCA. Null where a severity has no such deadline —
+   * T1 and T3 don't. */
+  resolutionPlanMinutes?: number | null;
+  /** When acknowledgement actually happened. Once set, the acknowledgement
+   * clock has stopped and the case moves on to its next deadline even if it
+   * is still sitting in Received. */
+  acknowledgedAt?: string | null;
   now?: Date;
 }): SlaStatus {
   if (params.currentStageKey === "closed") return { level: "good", label: "Closed" };
@@ -26,8 +34,14 @@ export function computeSlaStatus(params: {
   const now = params.now ?? new Date();
   const elapsedMinutes = (now.getTime() - new Date(params.createdAt).getTime()) / 60000;
 
-  if (params.currentStageKey === "received") {
+  if (params.currentStageKey === "received" && !params.acknowledgedAt) {
     return evaluate(elapsedMinutes, params.acknowledgementMinutes, "Acknowledge");
+  }
+
+  // The resolution plan is due from logging and is satisfied once the case
+  // reaches investigation — i.e. once somebody has decided what to do about it.
+  if ((params.currentStageKey === "received" || params.currentStageKey === "triage") && params.resolutionPlanMinutes != null) {
+    return evaluate(elapsedMinutes, params.resolutionPlanMinutes, "Resolution plan");
   }
 
   if (!RCA_DONE_STAGES.has(params.currentStageKey) && params.rcaMinutes != null) {

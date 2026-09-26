@@ -30,4 +30,13 @@ export const TABLES = {
   complaintCommunications: "edoscrm_complaint_communications",
   complaintCompensations: "edoscrm_complaint_compensations",
   notifications: "edoscrm_notifications",
+  contacts: "edoscrm_contacts",
+  tenantSettings: "edoscrm_tenant_settings",
+  categories: "edoscrm_categories",
+  kpiTargets: "edoscrm_kpi_targets",
+  productActions: "edoscrm_product_actions",
+  rcaSummaries: "edoscrm_rca_summaries",
+  rcaSummaryShares: "edoscrm_rca_summary_shares",
+  inboundEmails: "edoscrm_inbound_emails",
+  reportRuns: "edoscrm_report_runs",
 } as const;

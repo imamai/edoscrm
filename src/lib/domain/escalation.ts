@@ -8,47 +8,114 @@ export type EscalationResult = {
   relatedCount: number;
 };
 
+/**
+ * The thresholds this calculation uses. Shaped to match the columns on
+ * edoscrm_tenant_settings so a workspace's own row can be passed straight in;
+ * the defaults are the brief's numbers, used where a workspace has no row.
+ */
+export type EscalationThresholds = {
+  warn_count: number;
+  warn_hours: number;
+  escalate_count: number;
+  escalate_hours: number;
+  mandatory_rca_count: number;
+  mandatory_rca_hours: number;
+  withdrawal_count: number;
+  withdrawal_hours: number;
+  t3_escalate_count: number;
+  t3_escalate_days: number;
+};
+
+export const BRIEF_THRESHOLDS: EscalationThresholds = {
+  warn_count: 2,
+  warn_hours: 48,
+  escalate_count: 3,
+  escalate_hours: 48,
+  mandatory_rca_count: 5,
+  mandatory_rca_hours: 72,
+  withdrawal_count: 10,
+  withdrawal_hours: 72,
+  t3_escalate_count: 3,
+  t3_escalate_days: 7,
+};
+
 const HOUR = 60 * 60 * 1000;
 
-function within(complaints: Complaint[], hours: number, now: number): Complaint[] {
-  return complaints.filter((c) => now - new Date(c.created_at).getTime() <= hours * HOUR);
+function countWithin(complaints: Complaint[], hours: number, now: number): number {
+  // +1 for the complaint these siblings belong to, which is always inside
+  // every window by definition.
+  return complaints.filter((c) => now - new Date(c.created_at).getTime() <= hours * HOUR).length + 1;
 }
 
 /**
  * The brief's §"Escalation procedures" thresholds, computed at render time
  * from the batch siblings a complaint already has — never stored, same
- * philosophy as `computeSlaStatus` (sla.ts / domain/sla.ts): a fact derived
- * from current data, not a field that can drift out of sync with it.
+ * philosophy as `computeSlaStatus`: a fact derived from current data, not a
+ * field that can drift out of sync with it.
  *
- * Thresholds (all "same product/batch"):
- *  - 2+ within 48h -> warning
- *  - 3+ within 48h -> escalate to T2
- *  - 5+ within 72h -> mandatory RCA
- *  - 10+ within 72h -> withdrawal assessment
- *  - T3: 3+ within 7 days -> escalate to T2
+ * The thresholds themselves are per-workspace (§6 asks for them to be
+ * configurable) rather than compiled in, because numbers tuned for one product
+ * category are wrong for another, and in a multi-tenant product a fixed
+ * threshold imposes one company's risk appetite on everyone.
+ *
+ * Checked strongest-first, so a batch that crosses several thresholds reports
+ * the most serious one rather than the first one it happens to match.
  */
-export function computeBatchEscalation(siblings: Complaint[], severity: Severity): EscalationResult {
-  const now = Date.now();
-  const total = siblings.length + 1; // including the complaint itself
+export function computeBatchEscalation(
+  siblings: Complaint[],
+  severity: Severity,
+  thresholds: EscalationThresholds = BRIEF_THRESHOLDS,
+  now: number = Date.now(),
+): EscalationResult {
+  const relatedCount = siblings.length;
+  const t = thresholds;
 
-  const within72h = within(siblings, 72, now).length + 1;
-  const within48h = within(siblings, 48, now).length + 1;
-  const within7d = within(siblings, 24 * 7, now).length + 1;
+  const withdrawal = countWithin(siblings, t.withdrawal_hours, now);
+  if (withdrawal >= t.withdrawal_count) {
+    return {
+      level: "withdrawal_assessment",
+      message: `${withdrawal} complaints for this batch within ${t.withdrawal_hours} hours — withdrawal assessment required`,
+      relatedCount,
+    };
+  }
 
-  if (within72h >= 10) {
-    return { level: "withdrawal_assessment", message: `${within72h} complaints for this batch within 72 hours — withdrawal assessment required`, relatedCount: total - 1 };
+  const rca = countWithin(siblings, t.mandatory_rca_hours, now);
+  if (rca >= t.mandatory_rca_count) {
+    return {
+      level: "mandatory_rca",
+      message: `${rca} complaints for this batch within ${t.mandatory_rca_hours} hours — RCA is mandatory`,
+      relatedCount,
+    };
   }
-  if (within72h >= 5) {
-    return { level: "mandatory_rca", message: `${within72h} complaints for this batch within 72 hours — RCA is mandatory`, relatedCount: total - 1 };
+
+  const escalate = countWithin(siblings, t.escalate_hours, now);
+  if (escalate >= t.escalate_count) {
+    return {
+      level: "escalate_t2",
+      message: `${escalate} complaints for this batch within ${t.escalate_hours} hours — escalated to T2`,
+      relatedCount,
+    };
   }
-  if (within48h >= 3) {
-    return { level: "escalate_t2", message: `${within48h} complaints for this batch within 48 hours — escalated to T2`, relatedCount: total - 1 };
+
+  if (severity === "T3") {
+    const t3 = countWithin(siblings, t.t3_escalate_days * 24, now);
+    if (t3 >= t.t3_escalate_count) {
+      return {
+        level: "escalate_t2",
+        message: `${t3} similar T3 complaints within ${t.t3_escalate_days} days — escalated to T2`,
+        relatedCount,
+      };
+    }
   }
-  if (severity === "T3" && within7d >= 3) {
-    return { level: "escalate_t2", message: `${within7d} similar T3 complaints within 7 days — escalated to T2`, relatedCount: total - 1 };
+
+  const warn = countWithin(siblings, t.warn_hours, now);
+  if (warn >= t.warn_count) {
+    return {
+      level: "warning",
+      message: `${warn} complaints for this batch within ${t.warn_hours} hours — watch this batch`,
+      relatedCount,
+    };
   }
-  if (within48h >= 2) {
-    return { level: "warning", message: `${within48h} complaints for this batch within 48 hours — watch this batch`, relatedCount: total - 1 };
-  }
-  return { level: "none", message: "", relatedCount: total - 1 };
+
+  return { level: "none", message: "", relatedCount };
 }
