@@ -48,3 +48,13 @@ body {
   color: var(--color-ink);
   font-family: var(--font-sans);
 }
+
+/* A slim, unobtrusive horizontal scrollbar for the chevron stepper on
+   narrow screens, where the stage chain runs wider than the viewport. */
+.scroll-slim::-webkit-scrollbar {
+  height: 6px;
+}
+.scroll-slim::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 9999px;
+}

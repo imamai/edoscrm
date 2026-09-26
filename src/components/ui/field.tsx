@@ -17,6 +17,39 @@ export function Field({ label, id, className, ...props }: FieldProps) {
   );
 }
 
+type TextareaFieldProps = React.TextareaHTMLAttributes<HTMLTextAreaElement> & { label: string };
+
+export function TextareaField({ label, id, className, ...props }: TextareaFieldProps) {
+  const inputId = id ?? props.name;
+  return (
+    <div className="flex flex-col gap-1.5">
+      <label htmlFor={inputId} className="text-sm font-medium text-ink">
+        {label}
+      </label>
+      <textarea id={inputId} className={cn(CONTROL, "h-auto min-h-24 py-2", className)} {...props} />
+    </div>
+  );
+}
+
+type SelectFieldProps = React.SelectHTMLAttributes<HTMLSelectElement> & {
+  label: string;
+  children: React.ReactNode;
+};
+
+export function SelectField({ label, id, className, children, ...props }: SelectFieldProps) {
+  const inputId = id ?? props.name;
+  return (
+    <div className="flex flex-col gap-1.5">
+      <label htmlFor={inputId} className="text-sm font-medium text-ink">
+        {label}
+      </label>
+      <select id={inputId} className={cn(CONTROL, className)} {...props}>
+        {children}
+      </select>
+    </div>
+  );
+}
+
 export function FieldError({ children }: { children: React.ReactNode }) {
   return <p className="rounded-lg bg-danger/10 px-3 py-2 text-sm text-danger">{children}</p>;
 }

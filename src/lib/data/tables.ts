@@ -16,4 +16,8 @@ export const TABLES = {
   userRoles: "edoscrm_user_roles",
   platformAdmins: "edoscrm_platform_admins",
   auditLogs: "edoscrm_audit_logs",
+  workflows: "edoscrm_workflows",
+  workflowVersions: "edoscrm_workflow_versions",
+  complaints: "edoscrm_complaints",
+  complaintEvents: "edoscrm_complaint_events",
 } as const;
