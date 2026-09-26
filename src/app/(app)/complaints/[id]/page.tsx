@@ -14,6 +14,7 @@ import { getAttachments, getCommunications, getCompensations } from "@/lib/data/
 import { hasPermission } from "@/lib/auth/permissions";
 import { createClient } from "@/lib/supabase/server";
 import { TABLES } from "@/lib/data/tables";
+import { BackLink } from "@/components/ui/back-link";
 import { WorkflowStepper } from "@/components/ui/workflow-stepper";
 import { SeverityBadge } from "@/components/complaints/severity-badge";
 import { SlaBadge } from "@/components/complaints/sla-badge";
@@ -132,6 +133,7 @@ export default async function ComplaintDetailPage({ params }: { params: Promise<
       <div className="sticky top-0 z-30 -mx-6 flex flex-col gap-3 border-b border-border bg-background/95 px-6 py-3 backdrop-blur-sm">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="flex flex-col gap-1">
+            <BackLink href="/complaints" label="Complaints" />
             <p className="text-xs font-semibold uppercase tracking-wide text-ink-faint">{complaint.case_number}</p>
             <h1 className="text-xl font-semibold text-ink">{complaint.title}</h1>
             <p className="text-sm text-ink-faint">Opened {formatDate(complaint.created_at)}</p>

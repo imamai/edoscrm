@@ -56,6 +56,9 @@ export type ComplaintFilters = {
   severity?: Severity;
   channel?: Channel;
   category?: string;
+  /** Inclusive period on `created_at`, as ISO instants. */
+  from?: string;
+  to?: string;
 };
 
 export type ComplaintEvent = {
@@ -75,15 +78,16 @@ export async function getComplaints(tenantId: string, filters: ComplaintFilters 
   if (filters.severity) query = query.eq("severity", filters.severity);
   if (filters.channel) query = query.eq("source", filters.channel);
   if (filters.category) query = query.eq("category", filters.category);
+  if (filters.from) query = query.gte("created_at", filters.from);
+  if (filters.to) query = query.lte("created_at", filters.to);
   if (filters.q) {
     const term = filters.q.trim();
     if (term) {
-      // case_number/title/reporter_name/sku/batch_number — the fields the
-      // brief's §6 "Search and filtering" requirement names, minus product
-      // (title usually carries it in practice; a dedicated product filter
-      // can follow once real usage shows it's needed).
+      // Every field the brief's §6 "Search and filtering" requirement names:
+      // case number, complainant, product, SKU, batch — plus the title,
+      // which is what people actually remember a case by.
       query = query.or(
-        `case_number.ilike.%${term}%,title.ilike.%${term}%,reporter_name.ilike.%${term}%,sku.ilike.%${term}%,batch_number.ilike.%${term}%`,
+        `case_number.ilike.%${term}%,title.ilike.%${term}%,reporter_name.ilike.%${term}%,product_name.ilike.%${term}%,sku.ilike.%${term}%,batch_number.ilike.%${term}%`,
       );
     }
   }
