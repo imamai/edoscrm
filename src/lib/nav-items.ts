@@ -1,5 +1,5 @@
 import type { LucideIcon } from "lucide-react";
-import { LayoutDashboard, MessageSquareWarning, ListTodo, BarChart3, LineChart, Settings, ShieldCheck, Upload } from "lucide-react";
+import { LayoutDashboard, MessageSquareWarning, ListTodo, BarChart3, LineChart, Settings, ShieldCheck, Upload, Sparkles } from "lucide-react";
 
 export type NavItem = { label: string; href: string; icon: LucideIcon };
 export type NavGroup = { label: string; items: NavItem[]; platformOnly?: boolean };
@@ -25,7 +25,10 @@ export const NAV_GROUPS: NavGroup[] = [
   },
   {
     label: "Analytics",
-    items: [{ label: "Trends", href: "/analytics", icon: LineChart }],
+    items: [
+      { label: "Trends", href: "/analytics", icon: LineChart },
+      { label: "edos.ai", href: "/assistant", icon: Sparkles },
+    ],
   },
   {
     label: "Reports",

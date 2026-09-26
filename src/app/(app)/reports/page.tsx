@@ -1,37 +1,40 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ChevronRight, Gauge, Layers, Radio, Gift } from "lucide-react";
+import { ChevronRight, ClipboardList, Clock, FlaskConical, Gift } from "lucide-react";
 import { resolveSession } from "@/lib/data/session";
+import { hasPermission } from "@/lib/auth/permissions";
 import { getComplaints } from "@/lib/data/complaints";
 import { getSlaRules } from "@/lib/data/sla";
 import { computeSlaStatus } from "@/lib/domain/sla";
 import { getAllCompensations } from "@/lib/data/complaint-extras";
+import { REPORT_META, type ReportKey } from "@/lib/data/report-tables";
+import { ExportLinks } from "@/components/ui/export-links";
 
 export const metadata: Metadata = { title: "Reports" };
 
-const REPORTS = [
-  { key: "pipeline", title: "Pipeline & severity", description: "Every complaint by stage and by T1/T2/T3 severity.", icon: Layers },
-  { key: "channels", title: "Channels", description: "Where complaints actually come from — internal, web, phone, email, WhatsApp, walk-in.", icon: Radio },
-  { key: "kpis", title: "Quality KPIs", description: "The brief's §7 KPI table: acknowledgement SLA, closed-loop rate, RCA SLA, CAPA on-time, repeat issues.", icon: Gauge },
-  { key: "compensation", title: "Compensation", description: "Every hamper or credit note requested, its status, and the case it's traceable to.", icon: Gift },
-] as const;
+const ICONS: Record<ReportKey, typeof ClipboardList> = {
+  complaints: ClipboardList,
+  sla: Clock,
+  quality: FlaskConical,
+  compensation: Gift,
+};
+const ORDER: ReportKey[] = ["complaints", "sla", "quality", "compensation"];
 
 /**
- * Gallery index mirroring EDOSPMIS's own Reports page (a card per report,
- * opened to read the detail — not one page trying to be every report at
- * once) and edos-poa's "at a glance" strip underneath. Trend charts over
- * time live on Analytics instead — this page is for reading a specific,
- * complete answer, not for watching a line move.
+ * Gallery index mirroring EDOSPMIS's Reports page. Every report behind it
+ * is a table you read and download as CSV, Excel or PDF — charts and trend
+ * lines live on Analytics instead.
  */
 export default async function ReportsPage() {
   const session = await resolveSession();
   if (session.kind !== "ok") redirect("/");
 
-  const [complaints, slaRules, compensations] = await Promise.all([
+  const [complaints, slaRules, compensations, canExport] = await Promise.all([
     getComplaints(session.tenant.id),
     getSlaRules(session.tenant.id),
     getAllCompensations(session.tenant.id),
+    hasPermission(session.tenant.id, "complaints.export"),
   ]);
 
   const open = complaints.filter((c) => c.current_stage_key !== "closed");
@@ -49,7 +52,7 @@ export default async function ReportsPage() {
       <div>
         <h1 className="text-xl font-semibold text-ink">Reports</h1>
         <p className="mt-1 text-sm text-ink-faint">
-          Open a report to read it in full. Looking for trend charts instead? Try{" "}
+          Each report is a table you can read on screen and download as CSV, Excel or PDF. For trend charts, see{" "}
           <Link href="/analytics" className="text-brand hover:underline">
             Analytics
           </Link>
@@ -58,23 +61,30 @@ export default async function ReportsPage() {
       </div>
 
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-        {REPORTS.map((r) => {
-          const Icon = r.icon;
+        {ORDER.map((key) => {
+          const Icon = ICONS[key];
+          const meta = REPORT_META[key];
           return (
-            <Link
-              key={r.key}
-              href={`/reports/${r.key}`}
+            <div
+              key={key}
               className="group flex items-start gap-3 rounded-xl border border-border bg-surface p-4 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-brand/40 hover:shadow-md"
             >
               <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand/10 text-brand transition-transform duration-200 group-hover:scale-110">
                 <Icon className="h-4.5 w-4.5" />
               </span>
               <div className="min-w-0 flex-1">
-                <p className="text-sm font-semibold text-ink">{r.title}</p>
-                <p className="mt-0.5 text-xs text-ink-faint">{r.description}</p>
+                <Link href={`/reports/${key}`} className="flex items-center gap-1 text-sm font-semibold text-ink hover:text-brand">
+                  {meta.title}
+                  <ChevronRight className="h-4 w-4 shrink-0 transition-transform duration-200 group-hover:translate-x-0.5" />
+                </Link>
+                <p className="mt-0.5 text-xs text-ink-faint">{meta.description}</p>
+                {canExport && (
+                  <div className="mt-2">
+                    <ExportLinks base={`/api/export/report/${key}`} />
+                  </div>
+                )}
               </div>
-              <ChevronRight className="mt-1 h-4 w-4 shrink-0 text-ink-faint transition-transform duration-200 group-hover:translate-x-0.5 group-hover:text-brand" />
-            </Link>
+            </div>
           );
         })}
       </div>
