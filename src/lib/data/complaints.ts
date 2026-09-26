@@ -16,9 +16,13 @@ export type Complaint = {
   current_stage_key: string;
   assignee_id: string | null;
   department_id: string | null;
-  created_by: string;
+  created_by: string | null;
   created_at: string;
   closed_at: string | null;
+  source: "internal" | "web";
+  reporter_name: string | null;
+  reporter_email: string | null;
+  reporter_phone: string | null;
 };
 
 export type ComplaintEvent = {

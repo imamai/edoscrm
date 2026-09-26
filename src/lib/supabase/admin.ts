@@ -7,9 +7,9 @@ import { createClient as createSupabaseClient } from "@supabase/supabase-js";
  *
  * This bypasses every row-level security policy in the project — every other
  * product's tables included (see ARCHITECTURE.md §2). It exists for the one
- * thing that genuinely cannot be done as the signed-in user: creating the
- * `edoscrm_users` row and calling `edoscrm_provision_tenant` right after
- * `auth.signUp`, before a session cookie exists to run them as the user.
+ * thing that genuinely cannot be done as the signed-in user: the public
+ * intake API (`api/v1/intake`, ARCHITECTURE.md §8) accepting a complaint
+ * from someone with no account and no session to act through at all.
  *
  * Rules, because the cost of getting this wrong is every tenant's data:
  *

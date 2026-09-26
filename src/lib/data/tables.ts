@@ -21,4 +21,9 @@ export const TABLES = {
   complaints: "edoscrm_complaints",
   complaintEvents: "edoscrm_complaint_events",
   tasks: "edoscrm_tasks",
+  slaRules: "edoscrm_sla_rules",
+  investigations: "edoscrm_investigations",
+  rootCauses: "edoscrm_root_causes",
+  capas: "edoscrm_capas",
+  aiInteractions: "edoscrm_ai_interactions",
 } as const;

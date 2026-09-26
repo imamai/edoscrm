@@ -4,7 +4,10 @@ import { redirect } from "next/navigation";
 import { resolveSession } from "@/lib/data/session";
 import { getComplaints } from "@/lib/data/complaints";
 import { getDefaultWorkflowVersion } from "@/lib/data/workflows";
+import { getSlaRules } from "@/lib/data/sla";
+import { computeSlaStatus } from "@/lib/domain/sla";
 import { SeverityBadge } from "@/components/complaints/severity-badge";
+import { SlaBadge } from "@/components/complaints/sla-badge";
 import { Button } from "@/components/ui/button";
 import { formatDate } from "@/lib/utils";
 
@@ -14,9 +17,10 @@ export default async function ComplaintsPage() {
   const session = await resolveSession();
   if (session.kind !== "ok") redirect("/");
 
-  const [complaints, workflow] = await Promise.all([
+  const [complaints, workflow, slaRules] = await Promise.all([
     getComplaints(session.tenant.id),
     getDefaultWorkflowVersion(session.tenant.id),
+    getSlaRules(session.tenant.id),
   ]);
   const stageLabel = new Map(workflow?.definition.stages.map((s) => [s.key, s.label]) ?? []);
 
@@ -43,27 +47,43 @@ export default async function ComplaintsPage() {
                 <th className="px-4 py-2">Title</th>
                 <th className="px-4 py-2">Severity</th>
                 <th className="px-4 py-2">Stage</th>
+                <th className="px-4 py-2">SLA</th>
                 <th className="px-4 py-2">Opened</th>
               </tr>
             </thead>
             <tbody>
-              {complaints.map((c) => (
-                <tr key={c.id} className="border-b border-border last:border-0 hover:bg-background">
-                  <td className="px-4 py-2">
-                    <Link href={`/complaints/${c.id}`} className="font-medium text-brand hover:underline">
-                      {c.case_number}
-                    </Link>
-                  </td>
-                  <td className="px-4 py-2 text-ink">{c.title}</td>
-                  <td className="px-4 py-2">
-                    <SeverityBadge severity={c.severity} />
-                  </td>
-                  <td className="px-4 py-2 text-ink-faint">
-                    {stageLabel.get(c.current_stage_key) ?? c.current_stage_key}
-                  </td>
-                  <td className="px-4 py-2 text-ink-faint">{formatDate(c.created_at)}</td>
-                </tr>
-              ))}
+              {complaints.map((c) => {
+                const rule = slaRules[c.severity];
+                return (
+                  <tr key={c.id} className="border-b border-border last:border-0 hover:bg-background">
+                    <td className="px-4 py-2">
+                      <Link href={`/complaints/${c.id}`} className="font-medium text-brand hover:underline">
+                        {c.case_number}
+                      </Link>
+                    </td>
+                    <td className="px-4 py-2 text-ink">{c.title}</td>
+                    <td className="px-4 py-2">
+                      <SeverityBadge severity={c.severity} />
+                    </td>
+                    <td className="px-4 py-2 text-ink-faint">
+                      {stageLabel.get(c.current_stage_key) ?? c.current_stage_key}
+                    </td>
+                    <td className="px-4 py-2">
+                      {rule && (
+                        <SlaBadge
+                          status={computeSlaStatus({
+                            createdAt: c.created_at,
+                            currentStageKey: c.current_stage_key,
+                            acknowledgementMinutes: rule.acknowledgement_minutes,
+                            rcaMinutes: rule.rca_minutes,
+                          })}
+                        />
+                      )}
+                    </td>
+                    <td className="px-4 py-2 text-ink-faint">{formatDate(c.created_at)}</td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>

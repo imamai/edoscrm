@@ -306,6 +306,19 @@ action is "AI Suggested," surfaced for a human to accept, exactly as brief
 §26 requires. Implemented as server actions calling the Anthropic API
 directly; no AI code ships to the client.
 
+**Grounding, not fine-tuning.** There is no training step — edos.ai is
+grounded per call instead, through one shared system prompt
+(`src/lib/ai/client.ts`) that every action reuses: the domain vocabulary
+(stage names, T1/T2/T3, RCA/CAPA meaning) and the human-in-the-loop rules
+from §26, stated once rather than re-explained ad hoc in each action's own
+prompt. That system prompt is deliberately tenant-agnostic — actual tenant
+data (the specific case, its investigation, its events) is assembled fresh
+per call as the user message, never baked into the shared prompt, so one
+tenant's data can never leak into another's answer. The first action
+("Summarize case," `complaints/[id]/ai-actions.ts`) sets the pattern every
+later action should follow: reuse the system prompt, build a small
+structured context block from already-fetched data, one task instruction.
+
 ---
 
 ## 12. SLA engine

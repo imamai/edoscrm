@@ -5,12 +5,23 @@ function describe(event: ComplaintEvent, stageLabel: Map<string, string>): strin
   switch (event.event_type) {
     case "complaint.created": {
       const stage = event.payload.stage as string | undefined;
-      return `Complaint logged${stage ? ` — ${stageLabel.get(stage) ?? stage}` : ""}`;
+      const viaWeb = event.payload.source === "web";
+      return `Complaint logged${stage ? ` — ${stageLabel.get(stage) ?? stage}` : ""}${viaWeb ? " (via web)" : ""}`;
     }
     case "stage.changed": {
       const from = event.payload.from as string | undefined;
       const to = event.payload.to as string | undefined;
       return `Moved from ${(from && stageLabel.get(from)) ?? from} to ${(to && stageLabel.get(to)) ?? to}`;
+    }
+    case "investigation.recorded":
+      return "Investigation findings recorded";
+    case "root_cause.recorded": {
+      const category = event.payload.category as string | undefined;
+      return `Root cause classified${category ? ` — ${category}` : ""}`;
+    }
+    case "capa.recorded": {
+      const status = event.payload.status as string | undefined;
+      return `CAPA recorded${status ? ` — ${status.replace("_", " ")}` : ""}`;
     }
     default:
       return event.event_type;
@@ -37,8 +48,8 @@ export function EventTimeline({
         <li key={event.id} className="flex flex-col gap-0.5 border-l-2 border-border pl-3">
           <p className="text-sm text-ink">{describe(event, stageLabel)}</p>
           <p className="text-xs text-ink-faint">
-            {(event.actor_id && actorName.get(event.actor_id)) ?? "Someone"} ·{" "}
-            {formatDateTime(event.created_at)}
+            {(event.actor_id && actorName.get(event.actor_id)) ?? (event.payload.source === "web" ? "Web form" : "Someone")}{" "}
+            · {formatDateTime(event.created_at)}
           </p>
         </li>
       ))}
