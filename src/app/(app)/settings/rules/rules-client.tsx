@@ -7,7 +7,7 @@ import { FieldError } from "@/components/ui/field";
 import type { Category, TenantSettings, KpiTarget } from "@/lib/data/settings";
 import type { SlaRule } from "@/lib/data/sla";
 import type { Severity } from "@/lib/data/complaints";
-import { KPI_LABELS, type KpiKey } from "@/lib/data/kpis";
+import { KPI_LABELS, type KpiKey } from "@/lib/domain/kpi-labels";
 import {
   saveSlaAction,
   saveThresholdsAction,

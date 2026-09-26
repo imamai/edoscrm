@@ -47,7 +47,7 @@ export function AiSummaryCard({ complaintId }: { complaintId: string }) {
       )}
 
       {!summary && !error && (
-        <p className="text-sm text-ink-faint">Get a quick summary of this case from what's recorded so far.</p>
+        <p className="text-sm text-ink-faint">Get a quick summary of this case from what&rsquo;s recorded so far.</p>
       )}
     </div>
   );

@@ -1,7 +1,7 @@
 import "server-only";
 
 import { createClient } from "@/lib/supabase/server";
-import { getComplaints, getBatchSiblings, type Channel } from "@/lib/data/complaints";
+import { getComplaints, getBatchSiblings } from "@/lib/data/complaints";
 import { getDefaultWorkflowVersion } from "@/lib/data/workflows";
 import { getSlaRules } from "@/lib/data/sla";
 import { computeSlaStatus } from "@/lib/domain/sla";
@@ -76,7 +76,7 @@ export const TOOLS: Tool[] = [
       for (const c of open) {
         const rule = slaRules[c.severity];
         if (!rule) continue;
-        const status = computeSlaStatus({ createdAt: c.created_at, currentStageKey: c.current_stage_key, acknowledgementMinutes: rule.acknowledgement_minutes, rcaMinutes: rule.rca_minutes });
+        const status = computeSlaStatus({ createdAt: c.created_at, currentStageKey: c.current_stage_key, acknowledgementMinutes: rule.acknowledgement_minutes, rcaMinutes: rule.rca_minutes, resolutionPlanMinutes: rule.resolution_plan_minutes, acknowledgedAt: c.acknowledged_at });
         if (status.level !== "good") flagged.push({ case_number: c.case_number, title: c.title, severity: c.severity, status: status.label });
       }
       return { count: flagged.length, complaints: flagged };

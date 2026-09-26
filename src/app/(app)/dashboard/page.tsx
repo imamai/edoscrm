@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { AlertTriangle, CheckCircle2, ClipboardList, Clock } from "lucide-react";
+import { AlertTriangle, CheckCircle2, ClipboardList, Clock, Gauge } from "lucide-react";
 import { resolveSession } from "@/lib/data/session";
 import { getDashboardData } from "@/lib/data/dashboard";
 import { getDefaultWorkflowVersion } from "@/lib/data/workflows";
@@ -9,6 +9,8 @@ import { StatCard } from "@/components/dashboard/stat-card";
 import { SeverityBadge } from "@/components/complaints/severity-badge";
 import { ChannelBadge } from "@/components/complaints/channel-badge";
 import { AreaChart, BarChart, CHART, ChartCard, ChartEmpty, DonutChart, wholeNumber, type Point } from "@/components/charts/charts";
+import { computeKpiResults } from "@/lib/data/kpis";
+import { cn } from "@/lib/utils";
 import { formatDateTime } from "@/lib/utils";
 import type { Channel } from "@/lib/data/complaints";
 
@@ -51,7 +53,11 @@ export default async function DashboardPage() {
   const session = await resolveSession();
   if (session.kind !== "ok") redirect("/");
 
-  const [data, workflow] = await Promise.all([getDashboardData(session.tenant.id), getDefaultWorkflowVersion(session.tenant.id)]);
+  const [data, workflow, kpis] = await Promise.all([
+    getDashboardData(session.tenant.id),
+    getDefaultWorkflowVersion(session.tenant.id),
+    computeKpiResults(session.tenant.id),
+  ]);
   const stages = workflow?.definition.stages ?? [];
 
   const trendPoints = dailyCounts(data.complaints.map((c) => c.created_at));
@@ -88,6 +94,47 @@ export default async function DashboardPage() {
         <StatCard label="SLA overdue" value={data.overdueCount} icon={Clock} tone={data.overdueCount > 0 ? "danger" : "neutral"} />
         <StatCard label="Tasks overdue" value={data.tasksOverdueCount} icon={CheckCircle2} tone={data.tasksOverdueCount > 0 ? "warning" : "neutral"} />
       </div>
+
+      {/* Quality KPIs — the brief's §7 indicator set, on the dashboard because
+          this is the screen people open first and these are the numbers the
+          whole process is judged on. Each is shown against this workspace's
+          own target: a figure without a target is data, not performance, and
+          nobody can tell whether 78% is good. Analytics carries the same
+          indicators broken down by category, channel, product and owner. */}
+      <ChartCard icon={Gauge} title="Quality KPIs" subtitle="All time" action={{ href: "/analytics", label: "Break down" }}>
+        <p className="mb-4 text-xs text-ink-faint">
+          Computed from recorded timestamps — when a complaint was acknowledged, resolved and the complainant informed —
+          so each can be reported for any past period, not only for right now. Targets are set on{" "}
+          <Link href="/settings/rules" className="font-medium text-brand hover:underline">
+            Rules &amp; categories
+          </Link>
+          .
+        </p>
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+          {kpis.map((k) => (
+            <div key={k.key} className="flex flex-col gap-1 rounded-lg border border-border p-3">
+              <p className="text-xs font-medium text-ink-faint">{k.label}</p>
+              <p
+                className={cn(
+                  "text-xl font-semibold tabular-nums",
+                  k.value === null ? "text-ink-faint" : k.onTarget === true ? "text-good" : k.onTarget === false ? "text-danger" : "text-ink",
+                )}
+              >
+                {k.value === null ? "—" : `${k.value}%`}
+              </p>
+              <p className="text-[11px] text-ink-faint">
+                {k.note
+                  ? "Needs an outside count"
+                  : k.direction === "down"
+                    ? "Goal: downward trend"
+                    : k.target === null
+                      ? "No target set"
+                      : `Target ${k.direction === "lte" ? "≤" : "≥"} ${k.target}%`}
+              </p>
+            </div>
+          ))}
+        </div>
+      </ChartCard>
 
       <div className="grid gap-4 lg:grid-cols-3">
         <ChartCard icon={ClipboardList} title="Complaints logged" subtitle={`Last ${DAYS} days`} action={{ href: "/analytics", label: "Details" }} className="lg:col-span-2">

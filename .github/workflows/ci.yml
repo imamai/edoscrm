@@ -1,0 +1,26 @@
+name: CI
+
+# Typecheck, lint and test on every push and pull request. The rules most
+# worth protecting — closure control, the escalation thresholds, SLA
+# boundaries — were previously guarded only by whoever remembered them.
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Lint
+        run: npm run lint
+      - name: Unit tests
+        run: npm test

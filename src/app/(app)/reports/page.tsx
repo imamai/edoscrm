@@ -42,7 +42,7 @@ export default async function ReportsPage() {
   for (const c of open) {
     const rule = slaRules[c.severity];
     if (!rule) continue;
-    const status = computeSlaStatus({ createdAt: c.created_at, currentStageKey: c.current_stage_key, acknowledgementMinutes: rule.acknowledgement_minutes, rcaMinutes: rule.rca_minutes });
+    const status = computeSlaStatus({ createdAt: c.created_at, currentStageKey: c.current_stage_key, acknowledgementMinutes: rule.acknowledgement_minutes, rcaMinutes: rule.rca_minutes, resolutionPlanMinutes: rule.resolution_plan_minutes, acknowledgedAt: c.acknowledged_at });
     if (status.level === "danger") breached++;
   }
   const pendingCompensation = compensations.filter((c) => c.status === "requested").length;

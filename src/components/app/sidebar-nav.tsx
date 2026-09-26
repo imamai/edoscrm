@@ -104,10 +104,15 @@ export function SidebarNav({
   const [open, setOpen] = useState(false);
 
   // Navigating closes the drawer; without this it stays open over the page it
-  // just opened, which on a phone looks like the tap did nothing.
-  useEffect(() => {
+  // just opened, which on a phone looks like the tap did nothing. Adjusted
+  // during render rather than in an effect — React's own recommendation for
+  // state that derives from a prop change, and it avoids a frame where the
+  // drawer is still covering the new page.
+  const [lastPath, setLastPath] = useState(pathname);
+  if (lastPath !== pathname) {
+    setLastPath(pathname);
     setOpen(false);
-  }, [pathname]);
+  }
 
   // The drawer is a layer over the page, so the page behind it must not scroll.
   useEffect(() => {

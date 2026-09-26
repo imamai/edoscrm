@@ -9,6 +9,7 @@ import { getWorkflowVersion } from "@/lib/data/workflows";
 import { getQualityRecords } from "@/lib/data/investigation";
 import { computeBatchEscalation } from "@/lib/domain/escalation";
 import { notifyUsers } from "@/lib/data/notifications";
+import { informComplainantOfClosure } from "@/lib/notify/complainant";
 import { TABLES } from "@/lib/data/tables";
 
 /**
@@ -165,11 +166,20 @@ export async function setPendingInformation(complaintId: string, pending: boolea
   return { ok: true as const };
 }
 
-/** Brief §6 "Closure control": no case closes without a CAPA that's been
- * verified and a written confirmation on file — both checked here, not
- * just left to the UI to enforce, since RLS alone can't express "and a
- * related row in another table is in this state". */
-export async function closeComplaint(complaintId: string, closureNote: string) {
+/**
+ * Brief §6 "Closure control": no case closes without a CAPA that's been
+ * verified and a written confirmation on file — both checked here, not just
+ * left to the UI to enforce, since RLS alone can't express "and a related row
+ * in another table is in this state".
+ *
+ * The brief's closure criterion has a second half that used to be unenforced:
+ * "and the complainant is informed". A case with an email address on file now
+ * needs an outcome message, which is sent and recorded as the closing
+ * communication. Without that half, the closed-loop KPI measured internal
+ * paperwork rather than accountability to the person who complained — it could
+ * read 100% while nobody had heard anything.
+ */
+export async function closeComplaint(complaintId: string, closureNote: string, outcomeForComplainant?: string) {
   const session = await resolveSession();
   if (session.kind !== "ok") return { ok: false as const, error: "Your session has expired." };
   if (!closureNote.trim()) {
@@ -191,10 +201,28 @@ export async function closeComplaint(complaintId: string, closureNote: string) {
   const closedStage = workflow?.definition.stages.find((s) => s.key === "closed");
   if (!closedStage) return { ok: false as const, error: "This workflow has no closed stage configured." };
 
+  // Where we can reach the complainant, we must — and we say so plainly
+  // rather than closing quietly behind their back.
+  const canReachComplainant = Boolean(complaint.reporter_email?.trim());
+  if (canReachComplainant && !outcomeForComplainant?.trim()) {
+    return {
+      ok: false as const,
+      error: "Write the message telling the complainant what was done — a case isn't closed until they've been informed.",
+    };
+  }
+
+  const now = new Date().toISOString();
   const supabase = await createClient();
   const { error } = await supabase
     .from(TABLES.complaints)
-    .update({ current_stage_key: "closed", closed_at: new Date().toISOString(), closure_note: closureNote.trim() })
+    .update({
+      current_stage_key: "closed",
+      closed_at: now,
+      // The moment the fix was confirmed, which is what the closed-loop clock
+      // runs from — distinct from when the case was administratively closed.
+      resolved_at: complaint.resolved_at ?? now,
+      closure_note: closureNote.trim(),
+    })
     .eq("id", complaintId);
   if (error) return { ok: false as const, error: error.message };
 
@@ -206,8 +234,26 @@ export async function closeComplaint(complaintId: string, closureNote: string) {
     payload: { from: complaint.current_stage_key, note: closureNote.trim() },
   });
 
+  let informed = false;
+  if (canReachComplainant) {
+    const result = await informComplainantOfClosure({
+      tenantId: session.tenant.id,
+      tenantName: session.tenant.name,
+      complaintId,
+      caseNumber: complaint.case_number,
+      reporterName: complaint.reporter_name,
+      reporterEmail: complaint.reporter_email,
+      outcome: outcomeForComplainant!.trim(),
+      actorId: session.user.id,
+    }).catch(() => ({ sent: false as const }));
+    informed = result.sent;
+  }
+
   revalidatePath(`/complaints/${complaintId}`);
-  return { ok: true as const };
+  // The case is closed either way — a bounced email must not leave a verified,
+  // confirmed fix sitting open — but the caller is told, because "closed" and
+  // "closed and they know" are different things.
+  return { ok: true as const, complainantInformed: informed, couldReachComplainant: canReachComplainant };
 }
 
 /** Brief §6 "Customer communication" — acknowledgement, updates, final

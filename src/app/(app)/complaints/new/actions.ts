@@ -6,6 +6,9 @@ import { getDefaultWorkflowVersion } from "@/lib/data/workflows";
 import { getBatchSiblings, type Severity } from "@/lib/data/complaints";
 import { computeBatchEscalation } from "@/lib/domain/escalation";
 import { notifyUsers, usersWithPermission } from "@/lib/data/notifications";
+import { findOrCreateContact } from "@/lib/data/contacts";
+import { getTenantSettings } from "@/lib/data/settings";
+import { acknowledgeComplainant } from "@/lib/notify/complainant";
 import { suggestComplaintDetails, type ComplaintSuggestion } from "@/lib/ai/suggest";
 import { TABLES } from "@/lib/data/tables";
 
@@ -64,17 +67,30 @@ export async function createComplaint(formData: FormData) {
   if (!firstStage) return { ok: false as const, error: "This workspace's workflow has no stages." };
 
   const supabase = await createClient();
+  const settings = await getTenantSettings(session.tenant.id);
 
   const { data: caseNumber, error: numberError } = await supabase.rpc("edoscrm_next_case_number", {
     p_tenant_id: session.tenant.id,
   });
   if (numberError) return { ok: false as const, error: numberError.message };
 
+  // The complainant becomes a record, so a second complaint from the same
+  // person joins the first instead of starting again from nothing. Returns
+  // null for an anonymous report with neither an email nor a phone number —
+  // a real complaint, but not a person we can file.
+  const contactId = await findOrCreateContact(session.tenant.id, {
+    name: reporterName,
+    email: reporterEmail,
+    phone: reporterPhone,
+    type: channel === "sales_rep" ? "trade" : "consumer",
+  });
+
   const { data: complaint, error: insertError } = await supabase
     .from(TABLES.complaints)
     .insert({
       tenant_id: session.tenant.id,
       case_number: caseNumber,
+      contact_id: contactId,
       title,
       description,
       severity,
@@ -124,11 +140,28 @@ export async function createComplaint(formData: FormData) {
 
   if (sku && batchNumber) {
     const siblings = await getBatchSiblings(session.tenant.id, sku, batchNumber, complaint.id);
-    const escalation = computeBatchEscalation(siblings, severity);
+    const escalation = computeBatchEscalation(siblings, severity, settings);
     if (escalation.level !== "none") {
       const escalationTargets = await usersWithPermission(session.tenant.id, "complaints.manage");
       await notifyUsers(session.tenant.id, escalationTargets, `${caseNumber} (${sku}/${batchNumber}): ${escalation.message}`, complaint.id);
     }
+  }
+
+  // The closing half of the loop the brief asks for: "immediate case-reference
+  // acknowledgement to the logger and, where contact details exist, the
+  // complainant". Best-effort — a complaint that is logged but cannot be
+  // acknowledged is still logged, and failing the whole submission because an
+  // email bounced would lose the record the system exists to keep.
+  if (settings.auto_acknowledge) {
+    await acknowledgeComplainant({
+      tenantId: session.tenant.id,
+      tenantName: session.tenant.name,
+      complaintId: complaint.id as string,
+      caseNumber: caseNumber as string,
+      title,
+      reporterName,
+      reporterEmail,
+    }).catch(() => undefined);
   }
 
   return { ok: true as const, id: complaint.id as string };

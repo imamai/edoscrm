@@ -20,7 +20,7 @@ import { formatDate, cn } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Complaints" };
 
-type SearchParams = { q?: string; status?: string; severity?: string; channel?: string; category?: string; selected?: string };
+type SearchParams = { q?: string; status?: string; severity?: string; channel?: string; category?: string; owner?: string; selected?: string };
 
 export default async function ComplaintsPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
   const session = await resolveSession();
@@ -37,6 +37,7 @@ export default async function ComplaintsPage({ searchParams }: { searchParams: P
       severity: params.severity as Severity | undefined,
       channel: params.channel as Channel | undefined,
       category: params.category,
+      assignee: params.owner,
     }),
     getDefaultWorkflowVersion(session.tenant.id),
     getSlaRules(session.tenant.id),
@@ -163,6 +164,7 @@ export default async function ComplaintsPage({ searchParams }: { searchParams: P
               {params.severity && <input type="hidden" name="severity" value={params.severity} />}
               {params.channel && <input type="hidden" name="channel" value={params.channel} />}
               {params.category && <input type="hidden" name="category" value={params.category} />}
+              {params.owner && <input type="hidden" name="owner" value={params.owner} />}
               <input
                 type="search"
                 name="q"
@@ -198,8 +200,22 @@ export default async function ComplaintsPage({ searchParams }: { searchParams: P
                   </option>
                 ))}
               </select>
-              {(params.q || params.severity || params.channel || params.category) && (
-                <Link href={buildHref({ q: null, severity: null, channel: null, category: null, selected: null })} className="text-xs font-medium text-ink-faint hover:text-ink">
+              {/* Owner — the brief names it as a search and reporting
+                  dimension, and "what's on Jane's desk" is most of what
+                  day-to-day supervision consists of. "Unassigned" is the more
+                  useful of the two options: an unowned complaint is how things
+                  go quiet. */}
+              <select name="owner" defaultValue={params.owner ?? ""} className="h-9 rounded-lg border border-border bg-surface px-2 text-xs text-ink">
+                <option value="">Any owner</option>
+                <option value="unassigned">Unassigned</option>
+                {members.map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.name}
+                  </option>
+                ))}
+              </select>
+              {(params.q || params.severity || params.channel || params.category || params.owner) && (
+                <Link href={buildHref({ q: null, severity: null, channel: null, category: null, owner: null, selected: null })} className="text-xs font-medium text-ink-faint hover:text-ink">
                   Clear filters
                 </Link>
               )}
@@ -284,6 +300,8 @@ export default async function ComplaintsPage({ searchParams }: { searchParams: P
                       currentStageKey: selected.current_stage_key,
                       acknowledgementMinutes: slaRules[selected.severity].acknowledgement_minutes,
                       rcaMinutes: slaRules[selected.severity].rca_minutes,
+                      resolutionPlanMinutes: slaRules[selected.severity].resolution_plan_minutes,
+                      acknowledgedAt: selected.acknowledged_at,
                     })}
                   />
                 )}

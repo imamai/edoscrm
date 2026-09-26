@@ -75,6 +75,9 @@ export type ComplaintFilters = {
   /** Inclusive period on `created_at`, as ISO instants. */
   from?: string;
   to?: string;
+  /** A member's id, or "unassigned" for cases nobody owns — which is the more
+   * useful of the two, since an unowned complaint is how things go quiet. */
+  assignee?: string;
 };
 
 export type ComplaintEvent = {
@@ -94,6 +97,8 @@ export async function getComplaints(tenantId: string, filters: ComplaintFilters 
   if (filters.severity) query = query.eq("severity", filters.severity);
   if (filters.channel) query = query.eq("source", filters.channel);
   if (filters.category) query = query.eq("category", filters.category);
+  if (filters.assignee === "unassigned") query = query.is("assignee_id", null);
+  else if (filters.assignee) query = query.eq("assignee_id", filters.assignee);
   if (filters.from) query = query.gte("created_at", filters.from);
   if (filters.to) query = query.lte("created_at", filters.to);
   if (filters.q) {

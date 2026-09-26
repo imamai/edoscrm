@@ -6,13 +6,10 @@ import { getComplaints, type Complaint } from "@/lib/data/complaints";
 import { getSlaRules } from "@/lib/data/sla";
 import { getKpiTargets, type KpiTarget } from "@/lib/data/settings";
 
-export type KpiKey =
-  | "captureRate"
-  | "acknowledgementSlaPct"
-  | "closedLoopPct"
-  | "rcaSlaPct"
-  | "capaOnTimePct"
-  | "repeatIssuePct";
+export { KPI_LABELS } from "@/lib/domain/kpi-labels";
+export type { KpiKey } from "@/lib/domain/kpi-labels";
+import { KPI_LABELS } from "@/lib/domain/kpi-labels";
+import type { KpiKey } from "@/lib/domain/kpi-labels";
 
 export type Kpis = Record<KpiKey, number | null>;
 
@@ -29,15 +26,6 @@ export type KpiResult = {
   /** Why a value is missing, where that is a deliberate answer rather than
    * an absence of data. */
   note?: string;
-};
-
-export const KPI_LABELS: Record<KpiKey, string> = {
-  captureRate: "Complaint capture rate",
-  acknowledgementSlaPct: "Acknowledgement SLA",
-  closedLoopPct: "Closed-loop rate",
-  rcaSlaPct: "RCA SLA compliance",
-  capaOnTimePct: "CAPA on-time completion",
-  repeatIssuePct: "Repeat issue rate",
 };
 
 export type KpiPeriod = { from?: string; to?: string };

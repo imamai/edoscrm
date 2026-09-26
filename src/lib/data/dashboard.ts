@@ -57,6 +57,8 @@ export async function getDashboardData(tenantId: string): Promise<DashboardData>
       currentStageKey: c.current_stage_key,
       acknowledgementMinutes: rule.acknowledgement_minutes,
       rcaMinutes: rule.rca_minutes,
+      resolutionPlanMinutes: rule.resolution_plan_minutes,
+      acknowledgedAt: c.acknowledged_at,
     });
     if (status.level !== "good") attention.push({ complaint: c, reason: status.label });
   }

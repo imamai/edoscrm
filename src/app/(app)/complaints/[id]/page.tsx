@@ -15,6 +15,10 @@ import { hasPermission } from "@/lib/auth/permissions";
 import { createClient } from "@/lib/supabase/server";
 import { TABLES } from "@/lib/data/tables";
 import { BackLink } from "@/components/ui/back-link";
+import { getTenantSettings, getCategories } from "@/lib/data/settings";
+import { getContactComplaints } from "@/lib/data/contacts";
+import { EditComplaint } from "./edit-complaint";
+import { ContactHistory } from "./contact-history";
 import { WorkflowStepper } from "@/components/ui/workflow-stepper";
 import { SeverityBadge } from "@/components/complaints/severity-badge";
 import { SlaBadge } from "@/components/complaints/sla-badge";
@@ -92,6 +96,8 @@ export default async function ComplaintDetailPage({ params }: { params: Promise<
         currentStageKey: complaint.current_stage_key,
         acknowledgementMinutes: slaRule.acknowledgement_minutes,
         rcaMinutes: slaRule.rca_minutes,
+        resolutionPlanMinutes: slaRule.resolution_plan_minutes,
+        acknowledgedAt: complaint.acknowledged_at,
       })
     : null;
 
@@ -103,7 +109,15 @@ export default async function ComplaintDetailPage({ params }: { params: Promise<
   const batchSiblings = complaint.sku && complaint.batch_number
     ? await getBatchSiblings(session.tenant.id, complaint.sku, complaint.batch_number, complaint.id)
     : [];
-  const escalation = computeBatchEscalation(batchSiblings, complaint.severity);
+  const settings = await getTenantSettings(session.tenant.id);
+  const escalation = computeBatchEscalation(batchSiblings, complaint.severity, settings);
+
+  // Everything else this complainant has raised — the question that
+  // separates a CRM from a case tracker.
+  const contactHistory = complaint.contact_id
+    ? await getContactComplaints(session.tenant.id, complaint.contact_id, complaint.id)
+    : [];
+  const categories = (await getCategories(session.tenant.id)).map((c) => c.name);
 
   const actorIds = [...new Set(events.map((e) => e.actor_id).filter((v): v is string => Boolean(v)))];
   const actorName = new Map<string, string>();
@@ -154,7 +168,12 @@ export default async function ComplaintDetailPage({ params }: { params: Promise<
               {slaStatus && <SlaBadge status={slaStatus} />}
             </div>
             <ChannelBadge channel={complaint.source} />
-            {canOverrideSeverity && <SeverityOverride complaintId={complaint.id} severity={complaint.severity} />}
+            <div className="flex items-center gap-2">
+              {canManage && complaint.current_stage_key !== "closed" && (
+                <EditComplaint complaint={complaint} categories={categories} />
+              )}
+              {canOverrideSeverity && <SeverityOverride complaintId={complaint.id} severity={complaint.severity} />}
+            </div>
           </div>
         </div>
 
@@ -162,6 +181,8 @@ export default async function ComplaintDetailPage({ params }: { params: Promise<
       </div>
 
       <BatchEscalationBanner escalation={escalation} siblings={batchSiblings} />
+
+      <ContactHistory contactId={complaint.contact_id} history={contactHistory} />
 
       {canAssign && (
         <div className="flex items-center gap-3 rounded-xl border border-border bg-surface p-4">
@@ -201,7 +222,12 @@ export default async function ComplaintDetailPage({ params }: { params: Promise<
       )}
       {canClose && nextStage && nextStage.key === "closed" && (
         <div className="flex justify-end">
-          <ClosureControl complaintId={complaint.id} capaVerified={quality.capa?.status === "verified"} />
+          <ClosureControl
+            complaintId={complaint.id}
+            capaVerified={quality.capa?.status === "verified"}
+            reporterEmail={complaint.reporter_email}
+            reporterName={complaint.reporter_name}
+          />
         </div>
       )}
 

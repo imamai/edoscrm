@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -32,11 +32,17 @@ export function Modal({
   size?: "sm" | "md" | "lg";
   dismissible?: boolean;
 }) {
-  const [mounted, setMounted] = useState(false);
+  // "Have we hydrated yet" — a portal needs document.body, which does not
+  // exist during the server render. useSyncExternalStore answers this without
+  // a set-state-in-effect round trip: the server snapshot is false, the client
+  // snapshot is true.
+  const mounted = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false,
+  );
   const panelRef = useRef<HTMLDivElement>(null);
   const returnFocusTo = useRef<Element | null>(null);
-
-  useEffect(() => setMounted(true), []);
 
   useEffect(() => {
     if (!open) return;

@@ -30,6 +30,7 @@ export function ReportFilters({
   channels,
   categories,
   statuses,
+  owners,
   canExport,
   note,
 }: {
@@ -40,6 +41,7 @@ export function ReportFilters({
   channels: { value: string; label: string }[];
   categories: string[];
   statuses: { value: string; label: string }[];
+  owners: { id: string; name: string }[];
   canExport: boolean;
   note?: string;
 }) {
@@ -187,6 +189,20 @@ export function ReportFilters({
                 {statuses.map((s) => (
                   <option key={s.value} value={s.value}>
                     {s.label}
+                  </option>
+                ))}
+              </select>
+            </FilterField>
+          )}
+
+          {flags.owner && (
+            <FilterField label="Owner" htmlFor="rf-owner">
+              <select id="rf-owner" value={values.owner} onChange={(e) => set("owner", e.target.value)} className={filterControl}>
+                <option value="all">Anyone</option>
+                <option value="unassigned">Unassigned</option>
+                {owners.map((o) => (
+                  <option key={o.id} value={o.id}>
+                    {o.name}
                   </option>
                 ))}
               </select>

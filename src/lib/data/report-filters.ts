@@ -36,6 +36,9 @@ export interface ReportFilterFlags {
   category?: boolean;
   /** The report's own status column: CAPA status, or compensation status. */
   status?: boolean;
+  /** Filter by the person the case is assigned to — the brief names owner as
+   * both a reporting dimension and a search field. */
+  owner?: boolean;
   search?: boolean;
 }
 
@@ -48,6 +51,7 @@ export interface ReportFilterValues {
   channel: string;
   category: string;
   status: string;
+  owner: string;
   q: string;
 }
 
@@ -60,6 +64,7 @@ export const EMPTY_FILTERS: ReportFilterValues = {
   channel: "all",
   category: "all",
   status: "all",
+  owner: "all",
   q: "",
 };
 
@@ -79,6 +84,7 @@ export function parseReportFilters(searchParams: Record<string, string | string[
     channel: one("channel") || "all",
     category: one("category") || "all",
     status: one("status") || "all",
+    owner: one("owner") || "all",
     q: one("q"),
   };
 }
@@ -100,6 +106,7 @@ export function reportQuery(values: ReportFilterValues, flags: ReportFilterFlags
   if (flags.channel && values.channel !== "all") p.set("channel", values.channel);
   if (flags.category && values.category !== "all") p.set("category", values.category);
   if (flags.status && values.status !== "all") p.set("status", values.status);
+  if (flags.owner && values.owner !== "all") p.set("owner", values.owner);
   if (flags.search && values.q.trim()) p.set("q", values.q.trim());
   return p.toString();
 }
@@ -161,6 +168,7 @@ export function describeFilters(values: ReportFilterValues, flags: ReportFilterF
   if (flags.channel && values.channel !== "all") parts.push(`channel ${values.channel}`);
   if (flags.category && values.category !== "all") parts.push(values.category);
   if (flags.status && values.status !== "all") parts.push(`status ${values.status}`);
+  if (flags.owner && values.owner !== "all") parts.push(values.owner === "unassigned" ? "unassigned" : "one owner");
   if (flags.search && values.q.trim()) parts.push(`matching "${values.q.trim()}"`);
   return parts.join(" · ");
 }

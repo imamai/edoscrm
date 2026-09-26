@@ -50,7 +50,7 @@ export function WorkspaceSettingsForm({ tenant, canManage }: { tenant: SessionTe
           />
           <span className="tnum text-sm text-ink-faint">{accentColor}</span>
         </div>
-        <p className="text-xs text-ink-faint">Tints buttons and links. The sidebar stays EDOS CRM's navy.</p>
+        <p className="text-xs text-ink-faint">Tints buttons and links. The sidebar stays EDOS CRM&rsquo;s navy.</p>
       </div>
 
       {error && <FieldError>{error}</FieldError>}

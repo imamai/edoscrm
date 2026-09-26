@@ -5,7 +5,8 @@ import { resolveSession } from "@/lib/data/session";
 import { getComplaints, type Channel } from "@/lib/data/complaints";
 import { getDefaultWorkflowVersion } from "@/lib/data/workflows";
 import { getSlaRules } from "@/lib/data/sla";
-import { computeKpis } from "@/lib/data/kpis";
+import { computeKpisBy, type KpiDimension } from "@/lib/data/kpis";
+import { getTenantMembers } from "@/lib/data/members";
 import { computeSlaStatus } from "@/lib/domain/sla";
 import { AreaChart, BarChart, CHART, ChartCard, ChartEmpty, DonutChart, wholeNumber, type Point } from "@/components/charts/charts";
 import { cn } from "@/lib/utils";
@@ -99,7 +100,27 @@ function customRange(fromValue?: string, toValue?: string) {
   };
 }
 
-export default async function AnalyticsPage({ searchParams }: { searchParams: Promise<{ period?: string; from?: string; to?: string }> }) {
+/** The dimensions a KPI can be broken down by, named as people say them. */
+const DIMENSION_LABEL: Record<KpiDimension, string> = {
+  category: "Category",
+  source: "Channel",
+  severity: "Severity",
+  product_name: "Product",
+  assignee_id: "Owner",
+};
+
+function isKpiDimension(value: string | undefined): value is KpiDimension {
+  return Boolean(value && value in DIMENSION_LABEL);
+}
+
+/** A percentage cell that says nothing rather than "0%" when there is nothing
+ * to measure — a blank is honest where a zero reads as failure. */
+function pctCell(value: number | null) {
+  if (value === null) return <span className="text-ink-faint">—</span>;
+  return <span className={value >= 90 ? "text-good" : value >= 70 ? "text-ink" : "text-danger"}>{value}%</span>;
+}
+
+export default async function AnalyticsPage({ searchParams }: { searchParams: Promise<{ period?: string; from?: string; to?: string; by?: string }> }) {
   const session = await resolveSession();
   if (session.kind !== "ok") redirect("/");
   const sp = await searchParams;
@@ -110,12 +131,19 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
   const dayMonth = (d: Date) => d.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
   const periodLabel = custom ? `${dayMonth(custom.from)} – ${dayMonth(custom.to)}` : (PERIODS.find((p) => p.value === period)?.label ?? "Last 30 days");
 
-  const [all, workflow, slaRules, kpis] = await Promise.all([
+  // The KPI period is the same range the charts use, so a figure and the
+  // chart above it can never describe different spans of time.
+  const kpiPeriod = { from: from?.toISOString(), to: custom ? to.toISOString() : undefined };
+  const dimension = (isKpiDimension(sp.by) ? sp.by : "category") as KpiDimension;
+
+  const [all, workflow, slaRules, breakdown, members] = await Promise.all([
     getComplaints(session.tenant.id),
     getDefaultWorkflowVersion(session.tenant.id),
     getSlaRules(session.tenant.id),
-    computeKpis(session.tenant.id),
+    computeKpisBy(session.tenant.id, dimension, kpiPeriod),
+    getTenantMembers(session.tenant.id),
   ]);
+  const ownerName = new Map(members.map((m) => [m.id, m.name]));
   const complaints = all.filter((c) => {
     const at = new Date(c.created_at);
     if (from && at < from) return false;
@@ -130,7 +158,7 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
     if (c.current_stage_key === "closed") continue;
     const rule = slaRules[c.severity];
     if (!rule) continue;
-    const status = computeSlaStatus({ createdAt: c.created_at, currentStageKey: c.current_stage_key, acknowledgementMinutes: rule.acknowledgement_minutes, rcaMinutes: rule.rca_minutes });
+    const status = computeSlaStatus({ createdAt: c.created_at, currentStageKey: c.current_stage_key, acknowledgementMinutes: rule.acknowledgement_minutes, rcaMinutes: rule.rca_minutes, resolutionPlanMinutes: rule.resolution_plan_minutes, acknowledgedAt: c.acknowledged_at });
     if (status.level === "danger") breached++;
   }
   const t1Count = complaints.filter((c) => c.severity === "T1").length;
@@ -167,14 +195,6 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
 
   const href = (p: PeriodKey) => (p === DEFAULT_PERIOD ? "/analytics" : `/analytics?period=${p}`);
 
-  const kpiTiles: { label: string; value: number | null; target?: number; note?: string; lowerIsBetter?: boolean }[] = [
-    { label: "Capture rate", value: kpis.captureRate, note: "Not measurable from inside this system" },
-    { label: "Acknowledgement SLA", value: kpis.acknowledgementSlaPct, target: 100 },
-    { label: "Closed-loop rate", value: kpis.closedLoopPct, target: 85 },
-    { label: "RCA SLA (T1/T2)", value: kpis.rcaSlaPct, target: 100 },
-    { label: "CAPA on-time", value: kpis.capaOnTimePct, target: 100 },
-    { label: "Repeat issue rate", value: kpis.repeatIssuePct, lowerIsBetter: true },
-  ];
 
   return (
     <div className="flex flex-col gap-6">
@@ -262,29 +282,52 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
         </ChartCard>
       </div>
 
-      {/* Quality KPIs sit here with the rest of the charts rather than on
-          Reports — Reports is for tables you download, this is for reading
-          performance at a glance. All-time by definition: a closed-loop or
-          repeat-issue rate measured over one week says very little. */}
-      <ChartCard icon={Gauge} title="Quality KPIs" subtitle="All time">
-        <p className="mb-4 text-xs text-ink-faint">
-          Capture rate can&rsquo;t be computed from inside the system that is the record. Acknowledgement SLA reads current
-          live status, not a separately-recorded acknowledgement timestamp.
-        </p>
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-          {kpiTiles.map((t) => {
-            const onTarget = t.value !== null && t.target !== undefined && (t.lowerIsBetter ? t.value <= t.target : t.value >= t.target);
-            return (
-              <div key={t.label} className="flex flex-col gap-1 rounded-lg border border-border p-3">
-                <p className="text-xs font-medium text-ink-faint">{t.label}</p>
-                <p className={cn("text-xl font-semibold tabular-nums", t.value === null ? "text-ink-faint" : onTarget ? "text-good" : "text-ink")}>
-                  {t.value === null ? "—" : `${t.value}%`}
-                </p>
-                <p className="text-[11px] text-ink-faint">{t.note ?? (t.target !== undefined ? `Target ${t.lowerIsBetter ? "≤" : "≥"} ${t.target}%` : "Trend")}</p>
-              </div>
-            );
-          })}
+      {/* Disaggregation. An aggregate of 92% can conceal one category at 40%,
+          and a breakdown is where an evaluation finding actually comes from —
+          the brief asks for trends by category, product and channel. */}
+      <ChartCard icon={Gauge} title="Where performance differs" subtitle={`By ${DIMENSION_LABEL[dimension]} · ${periodLabel}`}>
+        <div className="mb-3 flex flex-wrap gap-1.5">
+          {(Object.keys(DIMENSION_LABEL) as (keyof typeof DIMENSION_LABEL)[]).map((d) => (
+            <Link
+              key={d}
+              href={`/analytics?${new URLSearchParams({ ...(sp.period ? { period: sp.period } : {}), ...(sp.from ? { from: sp.from } : {}), ...(sp.to ? { to: sp.to } : {}), by: d }).toString()}`}
+              className={cn(
+                "rounded-full border px-2.5 py-1 text-xs font-medium transition-colors",
+                d === dimension ? "border-brand bg-brand text-brand-ink" : "border-border text-ink-faint hover:border-brand/50 hover:text-ink",
+              )}
+            >
+              {DIMENSION_LABEL[d]}
+            </Link>
+          ))}
         </div>
+        {breakdown.length === 0 ? (
+          <p className="py-6 text-center text-sm text-ink-faint">Nothing to break down in this period.</p>
+        ) : (
+          <div className="scroll-slim overflow-x-auto">
+            <table className="w-full min-w-[32rem] text-left text-sm">
+              <thead>
+                <tr className="border-b border-border text-[11px] uppercase tracking-wide text-ink-faint">
+                  <th className="pb-2 pr-4 font-semibold">{DIMENSION_LABEL[dimension]}</th>
+                  <th className="pb-2 pr-4 text-right font-semibold">Complaints</th>
+                  <th className="pb-2 pr-4 text-right font-semibold">Acknowledgement SLA</th>
+                  <th className="pb-2 pr-4 text-right font-semibold">Closed-loop</th>
+                  <th className="pb-2 text-right font-semibold">Repeat issues</th>
+                </tr>
+              </thead>
+              <tbody>
+                {breakdown.map((row) => (
+                  <tr key={row.group} className="border-b border-border last:border-0">
+                    <td className="py-2 pr-4 text-ink">{dimension === "assignee_id" ? (ownerName.get(row.group) ?? "Unassigned") : row.group}</td>
+                    <td className="py-2 pr-4 text-right tabular-nums text-ink-faint">{row.complaints}</td>
+                    <td className="py-2 pr-4 text-right tabular-nums">{pctCell(row.kpis.acknowledgementSlaPct)}</td>
+                    <td className="py-2 pr-4 text-right tabular-nums">{pctCell(row.kpis.closedLoopPct)}</td>
+                    <td className="py-2 text-right tabular-nums">{pctCell(row.kpis.repeatIssuePct)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </ChartCard>
     </div>
   );

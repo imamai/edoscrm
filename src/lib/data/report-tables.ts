@@ -7,6 +7,7 @@ import { getDefaultWorkflowVersion } from "@/lib/data/workflows";
 import { getSlaRules } from "@/lib/data/sla";
 import { computeSlaStatus } from "@/lib/domain/sla";
 import { getAllCompensations } from "@/lib/data/complaint-extras";
+import { getTenantMembers } from "@/lib/data/members";
 import { formatDate } from "@/lib/utils";
 import {
   describeFilters,
@@ -32,14 +33,14 @@ export const REPORT_META: Record<ReportKey, { title: string; description: string
   complaints: {
     title: "Complaint register",
     description: "Every complaint on file with its product, batch, channel, severity and stage.",
-    filters: { dates: true, severity: true, stage: true, channel: true, category: true, search: true },
+    filters: { dates: true, severity: true, stage: true, channel: true, category: true, owner: true, search: true },
   },
   sla: {
     title: "SLA status",
     description: "Every open complaint against its acknowledgement and RCA deadlines.",
     // No stage filter: this report is already scoped to what is still open,
     // and no channel/category — an SLA breach is a breach whatever the route in.
-    filters: { dates: true, severity: true, search: true },
+    filters: { dates: true, severity: true, owner: true, search: true },
   },
   quality: {
     title: "Investigation, RCA & CAPA",
@@ -94,6 +95,7 @@ function complaintQuery(values: ReportFilterValues, flags: ReportFilterFlags) {
     status: flags.stage && values.stage !== "all" ? values.stage : undefined,
     channel: flags.channel && values.channel !== "all" ? (values.channel as Channel) : undefined,
     category: flags.category && values.category !== "all" ? values.category : undefined,
+    assignee: flags.owner && values.owner !== "all" ? values.owner : undefined,
     q: flags.search ? values.q : undefined,
   };
 }
@@ -114,18 +116,20 @@ export async function buildReport(
   const base = { name, title: meta.title, tenantName };
 
   if (key === "complaints") {
-    const [complaints, workflow, allCount] = await Promise.all([
+    const [complaints, workflow, allCount, members] = await Promise.all([
       getComplaints(tenantId, complaintQuery(values, flags)),
       getDefaultWorkflowVersion(tenantId),
       countAll(tenantId),
+      getTenantMembers(tenantId),
     ]);
     const stageLabel = new Map(workflow?.definition.stages.map((s) => [s.key, s.label]) ?? []);
+    const owners = new Map(members.map((m) => [m.id, m.name]));
     return {
       total: allCount,
       table: {
         ...base,
         subtitle: `${complaints.length} complaints — ${described || "all time"}`,
-        header: ["Case no.", "Title", "Category", "Severity", "Stage", "Channel", "Product", "SKU", "Batch", "Complainant", "Opened", "Closed"],
+        header: ["Case no.", "Title", "Category", "Severity", "Stage", "Channel", "Owner", "Product", "SKU", "Batch", "Complainant", "Opened", "Closed"],
         rows: complaints.map<Cell[]>((c) => [
           c.case_number,
           c.title,
@@ -133,6 +137,7 @@ export async function buildReport(
           c.severity,
           stageLabel.get(c.current_stage_key) ?? c.current_stage_key,
           c.source,
+          c.assignee_id ? (owners.get(c.assignee_id) ?? "—") : "Unassigned",
           c.product_name ?? "",
           c.sku ?? "",
           c.batch_number ?? "",
@@ -163,7 +168,7 @@ export async function buildReport(
         rows: open.map<Cell[]>((c) => {
           const rule = slaRules[c.severity];
           const status = rule
-            ? computeSlaStatus({ createdAt: c.created_at, currentStageKey: c.current_stage_key, acknowledgementMinutes: rule.acknowledgement_minutes, rcaMinutes: rule.rca_minutes })
+            ? computeSlaStatus({ createdAt: c.created_at, currentStageKey: c.current_stage_key, acknowledgementMinutes: rule.acknowledgement_minutes, rcaMinutes: rule.rca_minutes, resolutionPlanMinutes: rule.resolution_plan_minutes, acknowledgedAt: c.acknowledged_at })
             : null;
           return [
             c.case_number,

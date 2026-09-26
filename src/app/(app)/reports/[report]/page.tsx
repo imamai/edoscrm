@@ -5,6 +5,7 @@ import { hasPermission } from "@/lib/auth/permissions";
 import { buildReport, isReportKey, REPORT_META, REPORT_STATUS_OPTIONS } from "@/lib/data/report-tables";
 import { parseReportFilters } from "@/lib/data/report-filters";
 import { getDefaultWorkflowVersion } from "@/lib/data/workflows";
+import { getTenantMembers } from "@/lib/data/members";
 import { COMPLAINT_CATEGORIES } from "@/lib/domain/categories";
 import { BackLink } from "@/components/ui/back-link";
 import { RecordCount } from "@/components/ui/filter-card";
@@ -47,10 +48,11 @@ export default async function ReportDetailPage({
   const filters = parseReportFilters(await searchParams);
   const meta = REPORT_META[report];
 
-  const [result, canExport, workflow] = await Promise.all([
+  const [result, canExport, workflow, owners] = await Promise.all([
     buildReport(report, session.tenant.id, session.tenant.name, filters),
     hasPermission(session.tenant.id, "complaints.export"),
     meta.filters.stage ? getDefaultWorkflowVersion(session.tenant.id) : Promise.resolve(null),
+    meta.filters.owner ? getTenantMembers(session.tenant.id) : Promise.resolve([]),
   ]);
   const { table, total } = result;
 
@@ -76,6 +78,7 @@ export default async function ReportDetailPage({
         channels={CHANNELS}
         categories={COMPLAINT_CATEGORIES}
         statuses={REPORT_STATUS_OPTIONS[report] ?? []}
+        owners={owners}
         canExport={canExport}
         note={meta.description}
       />
