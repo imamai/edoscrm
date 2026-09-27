@@ -3,10 +3,11 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LogOut, Menu, X, ChevronRight } from "lucide-react";
+import { LogOut, Menu, X, ChevronDown, ChevronRight } from "lucide-react";
 import { NAV_GROUPS, type NavItem } from "@/lib/nav-items";
 import { cn } from "@/lib/utils";
 import { SignOutButton } from "@/app/(app)/sign-out-button";
+import { useStoredJson } from "@/lib/use-stored-json";
 
 /**
  * A nav row as a chevron: the active one is cut into an arrow pointing at the
@@ -45,30 +46,56 @@ function NavBody({
   tenantName,
   groups,
   activeHref,
+  collapsed,
+  onToggle,
   onNavigate,
 }: {
   tenantName: string;
   groups: typeof NAV_GROUPS;
   activeHref: string | null;
+  collapsed: Record<string, boolean>;
+  onToggle: (label: string) => void;
   onNavigate?: () => void;
 }) {
   return (
     <>
-      <div className="border-b border-white/10 px-5 py-4">
+      {/* shrink-0 so a long list of sections cannot squeeze the brand out of
+          the rail; the rail itself stays put while the page scrolls. */}
+      <div className="shrink-0 border-b border-white/10 px-5 py-4">
         <p className="text-lg font-semibold text-white">EDOS CRM</p>
         <p className="mt-0.5 truncate text-xs text-brand-soft/70">{tenantName}</p>
       </div>
       <nav className="scroll-slim flex flex-1 flex-col gap-3 overflow-y-auto p-3">
-        {groups.map((group) => (
-          <div key={group.label} className="flex flex-col gap-0.5">
-            <p className="px-3 pt-2 pb-1 text-[11px] font-semibold uppercase tracking-wide text-brand-soft/50">
-              {group.label}
-            </p>
-            {group.items.map((item) => (
-              <NavLink key={item.href} item={item} activeHref={activeHref} onNavigate={onNavigate} />
-            ))}
-          </div>
-        ))}
+        {groups.map((group, index) => {
+          // A section holding the current page never starts folded —
+          // otherwise the nav hides where the person actually is.
+          const holdsActive = group.items.some((i) => i.href === activeHref);
+          const folded = Boolean(collapsed[group.label]) && !holdsActive;
+          const sectionId = `nav-section-${index}`;
+
+          return (
+            <div key={group.label} className="flex flex-col gap-0.5">
+              <button
+                type="button"
+                onClick={() => onToggle(group.label)}
+                aria-expanded={!folded}
+                aria-controls={sectionId}
+                className="flex w-full items-center gap-2 rounded px-3 pt-2 pb-1 text-[11px] font-semibold uppercase tracking-wide text-brand-soft/50 transition-colors hover:text-white"
+              >
+                <span className="flex-1 truncate text-left">{group.label}</span>
+                <ChevronDown
+                  className={cn("h-3.5 w-3.5 shrink-0 transition-transform", folded && "-rotate-90")}
+                  aria-hidden="true"
+                />
+              </button>
+              <div id={sectionId} hidden={folded} className="flex flex-col gap-0.5">
+                {group.items.map((item) => (
+                  <NavLink key={item.href} item={item} activeHref={activeHref} onNavigate={onNavigate} />
+                ))}
+              </div>
+            </div>
+          );
+        })}
       </nav>
       <div className="border-t border-white/10 p-3">
         <SignOutButton
@@ -90,6 +117,10 @@ function NavBody({
  * exactly the users it most wanted to reach — Sales representatives and
  * distributors logging trade complaints from the field.
  */
+/** Stable reference: see the note on useStoredJson. */
+const NONE_FOLDED: Record<string, boolean> = {};
+const FOLD_KEY = "edoscrm:nav-folded";
+
 export function SidebarNav({
   tenantName,
   isPlatformAdmin,
@@ -102,6 +133,10 @@ export function SidebarNav({
 }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
+  // Which sections are folded away, remembered per browser — folding one and
+  // finding it open again on the next page would make the control pointless.
+  const [collapsed, setCollapsed] = useStoredJson(FOLD_KEY, NONE_FOLDED);
+  const toggleSection = (label: string) => setCollapsed({ ...collapsed, [label]: !collapsed[label] });
 
   // Navigating closes the drawer; without this it stays open over the page it
   // just opened, which on a phone looks like the tap did nothing. Adjusted
@@ -179,13 +214,29 @@ export function SidebarNav({
             >
               <X className="h-4 w-4" />
             </button>
-            <NavBody tenantName={tenantName} groups={groups} activeHref={activeHref} onNavigate={() => setOpen(false)} />
+            <NavBody
+              tenantName={tenantName}
+              groups={groups}
+              activeHref={activeHref}
+              collapsed={collapsed}
+              onToggle={toggleSection}
+              onNavigate={() => setOpen(false)}
+            />
           </aside>
         </div>
       )}
 
-      <aside className="hidden w-64 shrink-0 flex-col bg-brand-darker text-brand-soft md:flex">
-        <NavBody tenantName={tenantName} groups={groups} activeHref={activeHref} />
+      {/* Sticky and exactly the height of the screen: the page scrolls behind
+          it, so the brand, the sections and Sign out stay where they were
+          instead of scrolling off the top with the content. */}
+      <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col bg-brand-darker text-brand-soft md:flex">
+        <NavBody
+          tenantName={tenantName}
+          groups={groups}
+          activeHref={activeHref}
+          collapsed={collapsed}
+          onToggle={toggleSection}
+        />
       </aside>
     </>
   );
