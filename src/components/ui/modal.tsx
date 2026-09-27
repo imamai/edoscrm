@@ -15,6 +15,20 @@ import { cn } from "@/lib/utils";
  * `dismissible={false}` while a server action is in flight, so nobody escapes
  * out of a half-finished submit and is left unsure whether it happened.
  */
+/**
+ * Arguments to useSyncExternalStore have to be stable across renders. Inline
+ * arrows get a fresh identity every render, so React tears down and re-creates
+ * the subscription each time — which loops until the stack overflows and takes
+ * the Next.js build worker down during static generation. Module scope keeps
+ * one identity for the life of the module.
+ *
+ * Nothing ever changes, so the subscribe callback has nothing to do and
+ * returns a no-op unsubscribe.
+ */
+const subscribeNever = () => () => {};
+const getIsClient = () => true;
+const getIsServer = () => false;
+
 export function Modal({
   open,
   onClose,
@@ -33,14 +47,8 @@ export function Modal({
   dismissible?: boolean;
 }) {
   // "Have we hydrated yet" — a portal needs document.body, which does not
-  // exist during the server render. useSyncExternalStore answers this without
-  // a set-state-in-effect round trip: the server snapshot is false, the client
-  // snapshot is true.
-  const mounted = useSyncExternalStore(
-    () => () => {},
-    () => true,
-    () => false,
-  );
+  // exist during the server render. Server snapshot false, client true.
+  const mounted = useSyncExternalStore(subscribeNever, getIsClient, getIsServer);
   const panelRef = useRef<HTMLDivElement>(null);
   const returnFocusTo = useRef<Element | null>(null);
 
