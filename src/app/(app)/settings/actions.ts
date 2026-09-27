@@ -3,7 +3,9 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { resolveSession } from "@/lib/data/session";
+import { hasPermission } from "@/lib/auth/permissions";
 import { TABLES } from "@/lib/data/tables";
+import { isSafeLogoUrl } from "@/lib/safe-url";
 
 export async function updateWorkspace(formData: FormData) {
   const session = await resolveSession();
@@ -37,6 +39,18 @@ export async function updateWorkspace(formData: FormData) {
 export async function setTenantLogo(logoUrl: string | null): Promise<{ error: string | null }> {
   const session = await resolveSession();
   if (session.kind !== "ok") return { error: "Your session has expired." };
+
+  // Branding is what an external reader takes as the organisation's mark — it
+  // appears on every exported report. Changing it is an administrator's call,
+  // not any member's. This check was missing entirely.
+  if (!(await hasPermission(session.tenant.id, "admin.org.manage"))) {
+    return { error: "You don't have permission to change this workspace's branding." };
+  }
+
+  // Only a URL this workspace uploaded to its own storage bucket.
+  if (!isSafeLogoUrl(logoUrl)) {
+    return { error: "That logo URL isn't one this workspace uploaded." };
+  }
 
   const branding = { ...session.tenant.branding, logo_url: logoUrl };
   const supabase = await createClient();
