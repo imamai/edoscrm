@@ -16,6 +16,9 @@
   --color-surface: #ffffff;
   --color-border: #e2e5ec;
   --color-ink: #12141c;
+  /* Between ink and ink-faint: body copy on the public pages, which runs
+     longer than anything in the app and reads better a shade softer. */
+  --color-ink-soft: #545b6b;
   --color-ink-faint: #6b7080;
 
   --color-brand: #1d3557;
@@ -26,12 +29,26 @@
   --color-brand-tint: #f2f5fa;
   --color-brand-ink: #ffffff;
 
+  /* The single warm accent, used only on the public pages and only once
+     per screen — the same amber EDOSPMIS uses, since the two products
+     share a brand family. */
+  --color-accent: #d98e2f;
+  --color-accent-dark: #a86a1c;
+  --color-accent-soft: #fbf1e1;
+
   --color-good: #16803c;
   --color-warning: #b45309;
   --color-danger: #b91c1c;
   --color-info: #1d4ed8;
 
-  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --shadow-card: 0 1px 2px rgb(18 20 28 / 0.04), 0 1px 3px rgb(18 20 28 / 0.06);
+  --shadow-raised: 0 4px 12px rgb(18 20 28 / 0.06), 0 12px 32px -12px rgb(18 20 28 / 0.16);
+  --shadow-pop: 0 8px 24px rgb(18 20 28 / 0.1), 0 24px 56px -20px rgb(18 20 28 / 0.28);
+
+  --font-sans: var(--font-inter), "Inter", ui-sans-serif, system-ui, sans-serif;
+  /* Public pages only. Inside the app a heading is a label on a screen,
+     not a statement, so the working UI stays on the body face. */
+  --font-display: var(--font-manrope), var(--font-inter), ui-sans-serif, system-ui, sans-serif;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -40,10 +57,14 @@
     --color-surface: #14161d;
     --color-border: #262a35;
     --color-ink: #f3f4f7;
+    --color-ink-soft: #b9bdcb;
     --color-ink-faint: #8b8fa3;
     --color-brand: #5b82b8;
     --color-brand-dark: #3f5f8f;
     --color-brand-ink: #0b0c10;
+    /* A wash dark enough for the dark theme's near-white ink — the
+       light value would put white text on cream. */
+    --color-accent-soft: #3a2c15;
   }
 }
 
@@ -52,10 +73,14 @@
   --color-surface: #14161d;
   --color-border: #262a35;
   --color-ink: #f3f4f7;
+  --color-ink-soft: #b9bdcb;
   --color-ink-faint: #8b8fa3;
   --color-brand: #5b82b8;
   --color-brand-dark: #3f5f8f;
   --color-brand-ink: #0b0c10;
+  /* A wash dark enough for the dark theme's near-white ink — the
+     light value would put white text on cream. */
+  --color-accent-soft: #3a2c15;
 }
 
 body {
@@ -72,4 +97,114 @@ body {
 .scroll-slim::-webkit-scrollbar-thumb {
   background: var(--color-border);
   border-radius: 9999px;
+}
+
+/* ------------------------------------------------------------------ *
+ * Marketing surface
+ *
+ * A darker, higher-contrast treatment used only by the public pages
+ * (landing, pricing, contact, sign-in). Everything here is namespaced
+ * `mk-` so the working application keeps its own palette — including
+ * its dark theme — and nothing inside it can pick these up by accident.
+ * These panels are dark in BOTH themes on purpose: they are a
+ * photograph and a scrim, not a surface that follows the reader.
+ * ------------------------------------------------------------------ */
+
+.mk-dark {
+  background:
+    radial-gradient(120% 130% at 12% -15%, #2f4d78 0%, #12233b 44%, #0b1626 80%);
+  color: #eef2f8;
+  isolation: isolate;
+}
+
+.mk-glass {
+  background: rgb(255 255 255 / 0.08);
+  border: 1px solid rgb(255 255 255 / 0.14);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+
+.mk-grid-lines {
+  background-image:
+    linear-gradient(rgb(255 255 255 / 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(255 255 255 / 0.05) 1px, transparent 1px);
+  background-size: 56px 56px;
+}
+
+.mk-lift {
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+.mk-lift:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-pop);
+}
+
+@keyframes crm-rise {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Sections animate in FROM a visible resting state — the page is fully
+   readable at rest, never parked at opacity 0 waiting on a scroll. */
+.rise {
+  animation: crm-rise 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* Scale only: the track owns horizontal movement, so the photographs
+   themselves just breathe very slowly in place. */
+@keyframes hero-drift {
+  from { transform: scale(1.04); }
+  to   { transform: scale(1.12); }
+}
+
+.hero-drift {
+  animation: hero-drift 14s ease-in-out infinite alternate;
+  will-change: transform;
+}
+
+/* Hero slideshow — a horizontal carousel.
+ *
+ * The track holds four panels for three photographs: the first is repeated
+ * at the end, so when the animation loops from -75% back to 0 it cuts
+ * between two copies of the same picture and the rewind is invisible.
+ */
+@keyframes hero-slide {
+  0%,   22%  { transform: translateX(0); }
+  25%,  47%  { transform: translateX(-25%); }
+  50%,  72%  { transform: translateX(-50%); }
+  75%, 100%  { transform: translateX(-75%); }
+}
+
+.hero-track {
+  width: 400%;
+  animation: hero-slide 28s cubic-bezier(0.65, 0, 0.35, 1) infinite;
+  will-change: transform;
+}
+
+/* Headline words rise in one after another. The delay is set per word
+   inline; this only carries the motion. */
+@keyframes word-rise {
+  from { opacity: 0; transform: translateY(0.55em); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.word-rise {
+  display: inline-block;
+  animation: word-rise 0.65s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* Staggered entrances need their delays zeroed, not just their durations:
+   with `animation-fill-mode: both` they start at opacity 0, so keeping the
+   delay would leave text invisible for its length. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    animation-delay: 0ms !important;
+    transition-duration: 0.001ms !important;
+    transition-delay: 0ms !important;
+    scroll-behavior: auto !important;
+  }
 }

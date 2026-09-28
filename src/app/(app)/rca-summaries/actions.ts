@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { resolveSession } from "@/lib/data/session";
 import { hasPermission } from "@/lib/auth/permissions";
 import { upsertRcaSummary, approveRcaSummary, recordShare } from "@/lib/data/rca-summaries";
-import { sendEmail } from "@/lib/notify/email";
+import { sendEmail } from "@/lib/email";
 import { writeAudit } from "@/lib/data/audit";
 import { createClient } from "@/lib/supabase/server";
 import { TABLES } from "@/lib/data/tables";
@@ -108,9 +108,9 @@ export async function shareSummaryAction(id: string, recipient: string, note: st
                ${esc(session.tenant.name)}. This is an approved summary; the underlying investigation notes are internal.
              </p>
            </div>`,
-  }).catch(() => ({ ok: false as const, error: "send failed" }));
+  }).catch(() => ({ sent: false as const, reason: "send failed" }));
 
-  if (!sent.ok) return { ok: false as const, error: "That summary could not be emailed. Check the address and try again." };
+  if (!sent.sent) return { ok: false as const, error: "That summary could not be emailed. Check the address and try again." };
 
   await recordShare(session.tenant.id, id, recipient.trim(), note.trim(), session.user.id);
   await writeAudit({

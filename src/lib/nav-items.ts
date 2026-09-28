@@ -1,5 +1,6 @@
 import type { LucideIcon } from "lucide-react";
 import {
+  CreditCard,
   LayoutDashboard,
   MessageSquareWarning,
   ListTodo,
@@ -69,6 +70,7 @@ export const NAV_GROUPS: NavGroup[] = [
       { label: "Workspace", href: "/settings", icon: Settings },
       { label: "Members & roles", href: "/settings/members", icon: Users, permission: "admin.users.manage" },
       { label: "Rules & categories", href: "/settings/rules", icon: SlidersHorizontal, permission: "admin.settings.manage" },
+      { label: "Billing & plan", href: "/settings/billing", icon: CreditCard, permission: "admin.org.manage" },
       { label: "Audit log", href: "/settings/audit", icon: ScrollText, permission: "admin.audit.view" },
       { label: "Import complaints", href: "/settings/import", icon: Upload, permission: "complaints.import" },
     ],

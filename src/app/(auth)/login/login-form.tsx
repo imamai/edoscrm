@@ -25,7 +25,9 @@ export function LoginForm() {
       return;
     }
 
-    router.push("/");
+    // /dashboard rather than "/", which is the public landing page now. The
+    // app layout redirects anyone without a workspace on to /new-workspace.
+    router.push("/dashboard");
     router.refresh();
   }
 
@@ -36,16 +38,16 @@ export function LoginForm() {
 
       {error && <FieldError>{error}</FieldError>}
 
-      <Button type="submit" busy={busy}>
+      <Button type="submit" busy={busy} className="h-12 w-full text-base">
         {busy ? "Signing in…" : "Sign in"}
       </Button>
 
-      <p className="text-center text-sm text-ink-faint">
-        New here?{" "}
-        <Link href="/signup" className="font-medium text-brand hover:underline">
-          Create a workspace
-        </Link>
-      </p>
+      <Link
+        href="/forgot-password"
+        className="text-center text-sm text-ink-soft hover:text-brand hover:underline"
+      >
+        Forgot your password?
+      </Link>
     </form>
   );
 }

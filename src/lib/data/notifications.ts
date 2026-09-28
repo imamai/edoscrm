@@ -1,7 +1,7 @@
 import "server-only";
 
 import { createClient } from "@/lib/supabase/server";
-import { sendEmail } from "@/lib/notify/email";
+import { sendEmail } from "@/lib/email";
 import { TABLES } from "@/lib/data/tables";
 
 export type Notification = {

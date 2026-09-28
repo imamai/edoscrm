@@ -2,7 +2,9 @@ import { redirect } from "next/navigation";
 import { resolveSession } from "@/lib/data/session";
 import { hasPermission } from "@/lib/auth/permissions";
 import { NAV_GROUPS } from "@/lib/nav-items";
+import { getSubscription } from "@/lib/data/billing";
 import { SidebarNav } from "@/components/app/sidebar-nav";
+import { TrialBanner } from "@/components/app/trial-banner";
 import { NotificationBell } from "@/components/app/notification-bell";
 import { getNotifications, getUnreadCount } from "@/lib/data/notifications";
 
@@ -15,9 +17,13 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   // rather than inside the nav, which is a client component and has no way to
   // ask the database anything.
   const gated = NAV_GROUPS.flatMap((g) => g.items).filter((i) => i.permission);
-  const [notifications, unreadCount, ...allowedFlags] = await Promise.all([
+  const [notifications, unreadCount, subscription, canManageOrg, ...allowedFlags] = await Promise.all([
     getNotifications(session.user.id),
     getUnreadCount(session.user.id),
+    // One row, memoised for the request. The banner renders nothing at all
+    // unless a trial is nearly over or a period has lapsed.
+    getSubscription(session.tenant.id),
+    hasPermission(session.tenant.id, "admin.org.manage"),
     ...gated.map((i) => hasPermission(session.tenant.id, i.permission!)),
   ]);
   const allowedHrefs = gated.filter((_, i) => allowedFlags[i]).map((i) => i.href);
@@ -47,6 +53,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         {/* Canvas width matched to EDOSPMIS's dominant page wrapper
             (max-w-[1600px], mx-auto) — applied once here so every page gets
             it uniformly, rather than EDOSPMIS's own per-page repetition. */}
+        <TrialBanner subscription={subscription} canManage={canManageOrg} />
         <main className="flex-1 p-4 md:p-6">
           <div className="mx-auto w-full max-w-[1600px]">{children}</div>
         </main>

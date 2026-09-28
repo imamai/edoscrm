@@ -2,7 +2,7 @@ import "server-only";
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { TABLES } from "@/lib/data/tables";
-import { sendEmail } from "@/lib/notify/email";
+import { sendEmail } from "@/lib/email";
 import { computeSlaStatus } from "@/lib/domain/sla";
 import type { Complaint, Severity } from "@/lib/data/complaints";
 

@@ -1,8 +1,11 @@
 import "server-only";
 
+import { headers } from "next/headers";
+
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { TABLES } from "@/lib/data/tables";
+import { sendEmail, teamInviteEmail } from "@/lib/email";
 
 export type Member = { id: string; name: string };
 
@@ -96,6 +99,14 @@ export async function getMemberDetails(tenantId: string): Promise<MemberDetail[]
     .sort((a, b) => (a.full_name ?? a.email).localeCompare(b.full_name ?? b.email));
 }
 
+/** The address this request arrived on, so the invitation comes back here. */
+async function inviteOrigin(): Promise<string> {
+  const h = await headers();
+  const host = h.get("x-forwarded-host") ?? h.get("host") ?? "localhost:3000";
+  const proto = h.get("x-forwarded-proto") ?? (host.startsWith("localhost") ? "http" : "https");
+  return `${proto}://${host}`;
+}
+
 /**
  * Invite someone by email.
  *
@@ -122,7 +133,17 @@ export async function inviteMember(
   let status: "invited" | "added" = "added";
 
   if (!userId) {
-    const { data, error } = await admin.auth.admin.inviteUserByEmail(normalised);
+    // generateLink creates the account and hands back the invitation token
+    // WITHOUT sending anything, which leaves the message to us — the same
+    // reason sign-up and password reset do it this way (see lib/email.ts).
+    // inviteUserByEmail would send Supabase's stock template from the
+    // project's own address instead.
+    const base = await inviteOrigin();
+    const { data, error } = await admin.auth.admin.generateLink({
+      type: "invite",
+      email: normalised,
+      options: { redirectTo: `${base}/auth/callback?next=/update-password` },
+    });
     if (error || !data.user) {
       return { ok: false, error: error?.message ?? "Could not send that invitation." };
     }
@@ -131,6 +152,33 @@ export async function inviteMember(
     // The profile row normally appears when someone signs in; create it now so
     // they show in the member list before they have accepted.
     await admin.from(TABLES.users).upsert({ id: userId, email: normalised }, { onConflict: "id" });
+
+    const tokenHash = data.properties?.hashed_token;
+    if (tokenHash) {
+      const { data: tenant } = await admin
+        .from(TABLES.tenants)
+        .select("name")
+        .eq("id", tenantId)
+        .maybeSingle();
+      const { data: inviter } = await admin
+        .from(TABLES.users)
+        .select("full_name")
+        .eq("id", invitedBy)
+        .maybeSingle();
+
+      const link = `${base}/auth/callback?token_hash=${encodeURIComponent(tokenHash)}&type=invite&next=/update-password`;
+      const sent = await sendEmail({
+        to: normalised,
+        ...teamInviteEmail({
+          link,
+          workspaceName: (tenant?.name as string) ?? "your workspace",
+          invitedBy: (inviter?.full_name as string) ?? null,
+        }),
+      });
+      // The membership below is the thing that matters; a failed send is worth
+      // a log, not a rollback. They can still be let in with a password reset.
+      if (!sent.sent) console.error("EDOS CRM invitation email failed:", sent.reason);
+    }
   }
 
   const { error: memberError } = await admin

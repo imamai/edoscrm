@@ -2,7 +2,7 @@ import "server-only";
 
 import { createClient } from "@/lib/supabase/server";
 import { TABLES } from "@/lib/data/tables";
-import { sendEmail } from "@/lib/notify/email";
+import { sendEmail } from "@/lib/email";
 
 /**
  * The messages that go to the person who complained, rather than to staff.
@@ -63,9 +63,9 @@ export async function acknowledgeComplainant(params: {
     to: params.reporterEmail.trim(),
     subject: `${params.tenantName}: we have received your complaint (${params.caseNumber})`,
     html: WRAP(params.tenantName, body),
-  }).catch((e: unknown) => ({ ok: false as const, error: e instanceof Error ? e.message : "send failed" }));
+  }).catch((e: unknown) => ({ sent: false as const, reason: e instanceof Error ? e.message : "send failed" }));
 
-  const ok = (result as { ok?: boolean })?.ok !== false;
+  const ok = result.sent;
   if (!ok) return { sent: false, reason: "delivery failed" };
 
   const supabase = await createClient();
@@ -113,9 +113,9 @@ export async function informComplainantOfClosure(params: {
     to: params.reporterEmail.trim(),
     subject: `${params.tenantName}: your complaint ${params.caseNumber} — outcome`,
     html: WRAP(params.tenantName, body),
-  }).catch((e: unknown) => ({ ok: false as const, error: e instanceof Error ? e.message : "send failed" }));
+  }).catch((e: unknown) => ({ sent: false as const, reason: e instanceof Error ? e.message : "send failed" }));
 
-  const ok = (result as { ok?: boolean })?.ok !== false;
+  const ok = result.sent;
   if (!ok) return { sent: false, reason: "delivery failed" };
 
   const supabase = await createClient();
@@ -158,9 +158,9 @@ export async function updateComplainant(params: {
     to: params.reporterEmail.trim(),
     subject: `${params.tenantName}: update on your complaint (${params.caseNumber})`,
     html: WRAP(params.tenantName, body),
-  }).catch((e: unknown) => ({ ok: false as const, error: e instanceof Error ? e.message : "send failed" }));
+  }).catch((e: unknown) => ({ sent: false as const, reason: e instanceof Error ? e.message : "send failed" }));
 
-  if ((result as { ok?: boolean })?.ok === false) return { sent: false, reason: "delivery failed" };
+  if (!result.sent) return { sent: false, reason: "delivery failed" };
 
   const supabase = await createClient();
   await supabase.from(TABLES.complaintCommunications).insert({

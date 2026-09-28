@@ -30,10 +30,22 @@ export function WorkspaceForm() {
 
   return (
     <form onSubmit={onSubmit} className="flex flex-col gap-4">
-      <Field label="Workspace name" name="name" required autoFocus placeholder="Acme Foods Ltd" />
+      <Field
+        label="Organisation name"
+        name="tenant_name"
+        required
+        autoFocus
+        autoComplete="organization"
+        placeholder="e.g. Acme Foods Ltd"
+      />
+      <p className="-mt-2 text-xs text-ink-faint">
+        This names your workspace — you can change it later
+      </p>
+
       {error && <FieldError>{error}</FieldError>}
-      <Button type="submit" busy={busy}>
-        {busy ? "Creating…" : "Create workspace"}
+
+      <Button type="submit" busy={busy} className="h-12 w-full text-base">
+        {busy ? "Creating your workspace…" : "Create my workspace"}
       </Button>
     </form>
   );
