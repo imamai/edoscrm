@@ -7,7 +7,15 @@ import { Button } from "@/components/ui/button";
 import { Field, FieldError } from "@/components/ui/field";
 import { signIn } from "./actions";
 
-export function LoginForm() {
+export function LoginForm({
+  /** Arrived from the confirmation link, which deliberately does not sign anyone in. */
+  confirmed = false,
+  /** /auth/callback sends people back here when a link is spent or expired. */
+  linkExpired = false,
+}: {
+  confirmed?: boolean;
+  linkExpired?: boolean;
+} = {}) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -33,8 +41,41 @@ export function LoginForm() {
 
   return (
     <form onSubmit={onSubmit} className="flex flex-col gap-4">
-      <Field label="Email" name="email" type="email" required autoFocus autoComplete="email" />
-      <Field label="Password" name="password" type="password" required autoComplete="current-password" />
+      <Field
+        label="Email"
+        name="email"
+        type="email"
+        required
+        autoFocus
+        autoComplete="email"
+      />
+      <Field
+        label="Password"
+        name="password"
+        type="password"
+        required
+        autoComplete="current-password"
+      />
+
+      {confirmed && !error && (
+        <p
+          role="status"
+          className="rounded-lg border border-good/30 bg-good/10 px-3 py-2.5 text-sm text-good"
+        >
+          Your email is confirmed. Sign in with the password you chose when you
+          signed up.
+        </p>
+      )}
+
+      {linkExpired && !error && (
+        <p
+          role="alert"
+          className="rounded-lg border border-danger/30 bg-danger/10 px-3 py-2.5 text-sm text-danger"
+        >
+          That link has expired or has already been used. Ask for a new one
+          below.
+        </p>
+      )}
 
       {error && <FieldError>{error}</FieldError>}
 

@@ -10,12 +10,21 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-export default async function LoginPage() {
+export default async function LoginPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ confirmed?: string; error?: string }>;
+}) {
   const session = await resolveSession();
   // Already signed in: the app layout sends anyone without a workspace on to
   // /new-workspace, so /dashboard is the one destination that is right for
   // both cases. It is no longer "/" — that is the public landing page now.
   if (session.kind !== "anon") redirect("/dashboard");
+
+  // Read here rather than in the form: this page is already a server component,
+  // so passing them down avoids making the form reach for useSearchParams and
+  // need a Suspense boundary around it.
+  const params = await searchParams;
 
   return (
     <div>
@@ -27,7 +36,10 @@ export default async function LoginPage() {
       </p>
 
       <div className="mt-7">
-        <LoginForm />
+        <LoginForm
+          confirmed={params.confirmed === "1"}
+          linkExpired={params.error === "link_expired"}
+        />
       </div>
 
       <p className="mt-6 text-sm text-ink-soft">
