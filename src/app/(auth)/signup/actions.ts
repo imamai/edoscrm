@@ -7,14 +7,15 @@ import { canSendEmail, sendEmail, signupConfirmEmail } from "@/lib/email";
 import { ensureWorkspace } from "@/lib/provision";
 
 export type SignUpResult =
-  | { ok: true; confirmed: boolean }
-  | { ok: false; error: string };
+  { ok: true; confirmed: boolean } | { ok: false; error: string };
 
 /** The address this request arrived on, so the link comes back to the same place. */
 async function origin(): Promise<string> {
   const h = await headers();
   const host = h.get("x-forwarded-host") ?? h.get("host") ?? "localhost:3000";
-  const proto = h.get("x-forwarded-proto") ?? (host.startsWith("localhost") ? "http" : "https");
+  const proto =
+    h.get("x-forwarded-proto") ??
+    (host.startsWith("localhost") ? "http" : "https");
   return `${proto}://${host}`;
 }
 
@@ -36,7 +37,9 @@ async function origin(): Promise<string> {
  * session exists; see lib/provision.ts.
  */
 export async function signUp(formData: FormData): Promise<SignUpResult> {
-  const email = String(formData.get("email") ?? "").trim().toLowerCase();
+  const email = String(formData.get("email") ?? "")
+    .trim()
+    .toLowerCase();
   const password = String(formData.get("password") ?? "");
   const fullName = String(formData.get("full_name") ?? "").trim();
   const tenantName = String(formData.get("tenant_name") ?? "").trim();
@@ -44,9 +47,13 @@ export async function signUp(formData: FormData): Promise<SignUpResult> {
   if (!tenantName || !fullName || !email || !password) {
     return { ok: false, error: "Please fill in every field." };
   }
-  if (!email.includes("@")) return { ok: false, error: "Please enter a valid email address." };
+  if (!email.includes("@"))
+    return { ok: false, error: "Please enter a valid email address." };
   if (password.length < 8) {
-    return { ok: false, error: "Please use at least 8 characters for your password." };
+    return {
+      ok: false,
+      error: "Please use at least 8 characters for your password.",
+    };
   }
 
   const base = await origin();
@@ -57,7 +64,11 @@ export async function signUp(formData: FormData): Promise<SignUpResult> {
     try {
       admin = createAdminClient();
     } catch {
-      return { ok: false, error: "Sign-up isn't set up yet on this deployment. Please contact support." };
+      return {
+        ok: false,
+        error:
+          "Sign-up isn't set up yet on this deployment. Please contact support.",
+      };
     }
 
     const { data, error } = await admin.auth.admin.generateLink({
@@ -76,13 +87,57 @@ export async function signUp(formData: FormData): Promise<SignUpResult> {
       // to create an account and needs to know it already exists. Signing in
       // reveals the same thing anyway.
       if (message.includes("already") || message.includes("registered")) {
-        return { ok: false, error: "There is already an account with that email. Try signing in instead." };
+        return {
+          ok: false,
+          error:
+            "There is already an account with that email. Try signing in instead.",
+        };
       }
-      return { ok: false, error: "We couldn't create your account. Please try again." };
+      return {
+        ok: false,
+        error: "We couldn't create your account. Please try again.",
+      };
     }
 
+    const created = data?.user ?? null;
+
+    /**
+     * Undoes the account this request just created.
+     *
+     * `generateLink` creates the user before anything has been sent, so a mail
+     * failure would otherwise strand the address for good: the person cannot
+     * finish signing up, and cannot start again either, because the next
+     * attempt is told the account already exists. Removing it puts them back
+     * where they began, which is the only state they can act on themselves.
+     *
+     * Guarded, because deleting a user deserves to be narrow: only one that
+     * has never confirmed an email and never signed in — which is exactly what
+     * the call above just made, and never an account already in use. There is
+     * nothing else to undo; the workspace is provisioned at the first sign-in,
+     * not here.
+     */
+    const rollback = async (): Promise<boolean> => {
+      if (!created?.id) return false;
+      if (created.email_confirmed_at || created.last_sign_in_at) return false;
+      const { error: deleteError } = await admin.auth.admin.deleteUser(
+        created.id,
+      );
+      if (deleteError) {
+        // Worth a line in the log: the address is now stuck, and knowing that
+        // is the difference between fixing one account and hunting a ghost.
+        console.error("EDOS CRM signup rollback failed:", deleteError.message);
+      }
+      return !deleteError;
+    };
+
     const tokenHash = data?.properties?.hashed_token;
-    if (!tokenHash) return { ok: false, error: "We couldn't create your account. Please try again." };
+    if (!tokenHash) {
+      await rollback();
+      return {
+        ok: false,
+        error: "We couldn't create your account. Please try again.",
+      };
+    }
 
     const link = `${base}/auth/callback?token_hash=${encodeURIComponent(tokenHash)}&type=signup&next=/new-workspace`;
     const sent = await sendEmail({
@@ -92,10 +147,14 @@ export async function signUp(formData: FormData): Promise<SignUpResult> {
 
     if (!sent.sent) {
       console.error("EDOS CRM signup confirmation email failed:", sent.reason);
+      // Rolled back, so the message can tell them to simply try again —
+      // advice that only works because the address is free once more.
+      const undone = await rollback();
       return {
         ok: false,
-        error:
-          "Your account was created but we couldn't send the confirmation email. Use “Forgot your password?” on the sign-in page to get in.",
+        error: undone
+          ? "We couldn't send your confirmation email, so nothing was saved. Please try signing up again in a moment."
+          : "Your account was created but we couldn't send the confirmation email. Use “Forgot your password?” on the sign-in page to get in.",
       };
     }
 
