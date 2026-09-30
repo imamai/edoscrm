@@ -3,6 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { resolveSession } from "@/lib/data/session";
 import { LoginForm } from "./login-form";
+import { enabledProviders } from "@/lib/auth/providers";
 import { TRIAL_DAYS } from "@/lib/plans";
 
 export const metadata: Metadata = {
@@ -25,6 +26,9 @@ export default async function LoginPage({
   // so passing them down avoids making the form reach for useSearchParams and
   // need a Suspense boundary around it.
   const params = await searchParams;
+  // Asked for on the server so a provider that is not switched on in Supabase
+  // never renders a button — see lib/auth/providers.ts.
+  const providers = await enabledProviders();
 
   return (
     <div>
@@ -37,6 +41,7 @@ export default async function LoginPage({
 
       <div className="mt-7">
         <LoginForm
+          providers={providers}
           confirmed={params.confirmed === "1"}
           linkExpired={params.error === "link_expired"}
         />

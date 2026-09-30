@@ -7,8 +7,10 @@ import { Button } from "@/components/ui/button";
 import { Field, FieldError } from "@/components/ui/field";
 import { signUp } from "./actions";
 import { ONBOARDING_NOTE } from "@/lib/plans";
+import { SocialSignIn } from "@/components/auth/social-sign-in";
+import type { ProviderId } from "@/lib/auth/providers";
 
-export function SignupForm() {
+export function SignupForm({ providers }: { providers: ProviderId[] }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -45,10 +47,12 @@ export function SignupForm() {
     return (
       <div className="flex flex-col items-center gap-3 rounded-xl border border-brand/20 bg-brand-soft p-7 text-center">
         <MailCheck className="h-8 w-8 text-brand" />
-        <h2 className="font-display text-lg font-bold text-brand-darker">Check your email</h2>
+        <h2 className="font-display text-lg font-bold text-brand-darker">
+          Check your email
+        </h2>
         <p className="text-sm leading-relaxed text-brand-darker/80">
-          We sent a confirmation link to <strong>{confirmSent}</strong>. Open it and
-          you will land straight in your new workspace.
+          We sent a confirmation link to <strong>{confirmSent}</strong>. Open it
+          and you will land straight in your new workspace.
         </p>
       </div>
     );
@@ -56,6 +60,12 @@ export function SignupForm() {
 
   return (
     <form onSubmit={onSubmit} className="flex flex-col gap-4">
+      <SocialSignIn
+        label="or fill this in"
+        divider="below"
+        enabled={providers}
+        intent="signup"
+      />
       <Field
         label="Organisation name"
         name="tenant_name"
@@ -68,8 +78,19 @@ export function SignupForm() {
         This names your workspace — you can change it later
       </p>
 
-      <Field label="Your full name" name="full_name" required autoComplete="name" />
-      <Field label="Email" name="email" type="email" required autoComplete="email" />
+      <Field
+        label="Your full name"
+        name="full_name"
+        required
+        autoComplete="name"
+      />
+      <Field
+        label="Email"
+        name="email"
+        type="email"
+        required
+        autoComplete="email"
+      />
       <Field
         label="Password"
         name="password"

@@ -6,16 +6,20 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Field, FieldError } from "@/components/ui/field";
 import { signIn } from "./actions";
+import { SocialSignIn } from "@/components/auth/social-sign-in";
+import type { ProviderId } from "@/lib/auth/providers";
 
 export function LoginForm({
+  providers,
   /** Arrived from the confirmation link, which deliberately does not sign anyone in. */
   confirmed = false,
   /** /auth/callback sends people back here when a link is spent or expired. */
   linkExpired = false,
 }: {
+  providers: ProviderId[];
   confirmed?: boolean;
   linkExpired?: boolean;
-} = {}) {
+}) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -41,6 +45,11 @@ export function LoginForm({
 
   return (
     <form onSubmit={onSubmit} className="flex flex-col gap-4">
+      <SocialSignIn
+        label="or sign in with your email"
+        divider="below"
+        enabled={providers}
+      />
       <Field
         label="Email"
         name="email"
