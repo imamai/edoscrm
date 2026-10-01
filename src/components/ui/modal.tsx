@@ -48,9 +48,35 @@ export function Modal({
 }) {
   // "Have we hydrated yet" — a portal needs document.body, which does not
   // exist during the server render. Server snapshot false, client true.
-  const mounted = useSyncExternalStore(subscribeNever, getIsClient, getIsServer);
+  const mounted = useSyncExternalStore(
+    subscribeNever,
+    getIsClient,
+    getIsServer,
+  );
   const panelRef = useRef<HTMLDivElement>(null);
   const returnFocusTo = useRef<Element | null>(null);
+
+  /**
+   * The newest `onClose` and `dismissible`, without either being a dependency
+   * of the effect below.
+   *
+   * This was a bug, not a tidy-up: every call site passes
+   * `onClose={() => setThing(false)}`, a fresh function each render, and
+   * `dismissible={!pending}` flips mid-submit. With those in the dependency
+   * list the effect tore down and re-ran on every keystroke — the cleanup
+   * returning focus to the trigger outside the dialog, the effect then
+   * focusing the panel. One character landed in the field and the next went
+   * nowhere, in every dialog in the app.
+   */
+  const onCloseRef = useRef(onClose);
+  const dismissibleRef = useRef(dismissible);
+  // No dependency array on purpose: runs after every commit, so the refs are
+  // current before a key can be pressed, and holds nothing the focus effect
+  // could react to.
+  useEffect(() => {
+    onCloseRef.current = onClose;
+    dismissibleRef.current = dismissible;
+  });
 
   useEffect(() => {
     if (!open) return;
@@ -59,7 +85,7 @@ export function Modal({
     document.body.style.overflow = "hidden";
 
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && dismissible) onClose();
+      if (e.key === "Escape" && dismissibleRef.current) onCloseRef.current();
       if (e.key !== "Tab" || !panelRef.current) return;
       // Keep focus inside the dialog: tabbing off the end wraps to the start,
       // so keyboard users can't wander into the page behind it.
@@ -89,7 +115,9 @@ export function Modal({
       document.body.style.overflow = previousOverflow;
       (returnFocusTo.current as HTMLElement | null)?.focus?.();
     };
-  }, [open, dismissible, onClose]);
+    // Opening and closing is the whole of it. Anything else here re-runs the
+    // teardown — and the teardown moves focus.
+  }, [open]);
 
   if (!mounted || !open) return null;
 
@@ -108,13 +136,19 @@ export function Modal({
         tabIndex={-1}
         className={cn(
           "relative flex max-h-[90dvh] w-full flex-col rounded-t-2xl border border-border bg-surface shadow-lg outline-none sm:rounded-xl",
-          size === "sm" ? "sm:max-w-sm" : size === "lg" ? "sm:max-w-3xl" : "sm:max-w-lg",
+          size === "sm"
+            ? "sm:max-w-sm"
+            : size === "lg"
+              ? "sm:max-w-3xl"
+              : "sm:max-w-lg",
         )}
       >
         <div className="flex items-start justify-between gap-3 border-b border-border px-4 py-3">
           <div className="min-w-0">
             <h2 className="text-sm font-semibold text-ink">{title}</h2>
-            {description && <p className="mt-0.5 text-xs text-ink-faint">{description}</p>}
+            {description && (
+              <p className="mt-0.5 text-xs text-ink-faint">{description}</p>
+            )}
           </div>
           {dismissible && (
             <button
@@ -127,7 +161,9 @@ export function Modal({
             </button>
           )}
         </div>
-        <div className="scroll-slim min-h-0 flex-1 overflow-y-auto p-4">{children}</div>
+        <div className="scroll-slim min-h-0 flex-1 overflow-y-auto p-4">
+          {children}
+        </div>
       </div>
     </div>,
     document.body,
@@ -163,7 +199,9 @@ export function ModalFormActions({
         disabled={busy}
         className={cn(
           "rounded-lg px-3 py-2 text-sm font-semibold text-white disabled:opacity-60",
-          danger ? "bg-danger hover:opacity-90" : "bg-brand hover:bg-brand-dark",
+          danger
+            ? "bg-danger hover:opacity-90"
+            : "bg-brand hover:bg-brand-dark",
         )}
       >
         {busy ? "Working…" : submitLabel}
