@@ -3,21 +3,44 @@ import { redirect } from "next/navigation";
 import { ScrollText } from "lucide-react";
 import { resolveSession } from "@/lib/data/session";
 import { hasPermission } from "@/lib/auth/permissions";
-import { getAuditLog, getAuditActions, type AuditFilters } from "@/lib/data/audit";
+import {
+  getAuditLog,
+  getAuditActions,
+  type AuditFilters,
+} from "@/lib/data/audit";
 import { getTenantMembers } from "@/lib/data/members";
 import { resolvePeriod, parseReportFilters } from "@/lib/data/report-filters";
 import { BackLink } from "@/components/ui/back-link";
 import { ExportLinks } from "@/components/ui/export-links";
-import { FilterCard, FilterField, RecordCount, filterControl } from "@/components/ui/filter-card";
-import { EmptyState, DataTable, Row, Cell, Badge } from "@/components/ui/primitives";
+import {
+  FilterCard,
+  FilterField,
+  RecordCount,
+  filterControl,
+} from "@/components/ui/filter-card";
+import {
+  EmptyState,
+  DataTable,
+  Row,
+  Cell,
+  Badge,
+} from "@/components/ui/primitives";
 import { formatDateTime } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Audit log" };
 
 /** A value pair rendered as "was → now", which is the whole point of an audit
  * entry and the one thing a case event could never show. */
-function Change({ before, after }: { before: Record<string, unknown> | null; after: Record<string, unknown> | null }) {
-  const keys = Array.from(new Set([...Object.keys(before ?? {}), ...Object.keys(after ?? {})]));
+function Change({
+  before,
+  after,
+}: {
+  before: Record<string, unknown> | null;
+  after: Record<string, unknown> | null;
+}) {
+  const keys = Array.from(
+    new Set([...Object.keys(before ?? {}), ...Object.keys(after ?? {})]),
+  );
   if (!keys.length) return <span className="text-ink-faint">—</span>;
 
   return (
@@ -25,7 +48,12 @@ function Change({ before, after }: { before: Record<string, unknown> | null; aft
       {keys.slice(0, 6).map((k) => {
         const b = before?.[k];
         const a = after?.[k];
-        const fmt = (v: unknown) => (v === null || v === undefined || v === "" ? "—" : typeof v === "object" ? JSON.stringify(v) : String(v));
+        const fmt = (v: unknown) =>
+          v === null || v === undefined || v === ""
+            ? "—"
+            : typeof v === "object"
+              ? JSON.stringify(v)
+              : String(v);
         return (
           <p key={k} className="text-xs">
             <span className="text-ink-faint">{k}: </span>
@@ -39,7 +67,9 @@ function Change({ before, after }: { before: Record<string, unknown> | null; aft
           </p>
         );
       })}
-      {keys.length > 6 && <p className="text-xs text-ink-faint">and {keys.length - 6} more</p>}
+      {keys.length > 6 && (
+        <p className="text-xs text-ink-faint">and {keys.length - 6} more</p>
+      )}
     </div>
   );
 }
@@ -86,7 +116,8 @@ export default async function AuditPage({
   const nameById = new Map(members.map((m) => [m.id, m.name]));
 
   const query = new URLSearchParams();
-  for (const k of ["period", "from", "to", "action", "q"]) if (one(k)) query.set(k, one(k));
+  for (const k of ["period", "from", "to", "action", "q"])
+    if (one(k)) query.set(k, one(k));
   const qs = query.toString();
 
   return (
@@ -95,8 +126,9 @@ export default async function AuditPage({
         <BackLink href="/settings" label="Settings" />
         <h1 className="text-xl font-semibold text-ink">Audit log</h1>
         <p className="text-sm text-ink-faint">
-          Who changed what, from what to what, and why. The per-case timeline tells the story of a complaint; this is the
-          record an auditor is handed — and it downloads as a file.
+          Who changed what, from what to what, and why. The per-case timeline
+          tells the story of a complaint; this is the record an auditor is
+          handed — and it downloads as a file.
         </p>
       </div>
 
@@ -108,7 +140,10 @@ export default async function AuditPage({
           note={`${period.label}. Newest first, most recent 1,000 entries.`}
           actions={
             <>
-              <button type="submit" className="h-10 rounded-lg bg-brand px-4 text-sm font-semibold text-brand-ink hover:bg-brand-dark">
+              <button
+                type="submit"
+                className="h-10 rounded-lg bg-brand px-4 text-sm font-semibold text-brand-ink hover:bg-brand-dark"
+              >
                 Apply
               </button>
               <ExportLinks base={`/api/export/audit${qs ? `?${qs}` : ""}`} />
@@ -117,7 +152,12 @@ export default async function AuditPage({
         >
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <FilterField label="Period" htmlFor="period">
-              <select id="period" name="period" defaultValue={one("period") || "30d"} className={filterControl}>
+              <select
+                id="period"
+                name="period"
+                defaultValue={one("period") || "30d"}
+                className={filterControl}
+              >
                 <option value="all">All time</option>
                 <option value="7d">Last 7 days</option>
                 <option value="30d">Last 30 days</option>
@@ -127,7 +167,12 @@ export default async function AuditPage({
               </select>
             </FilterField>
             <FilterField label="Action" htmlFor="action">
-              <select id="action" name="action" defaultValue={one("action")} className={filterControl}>
+              <select
+                id="action"
+                name="action"
+                defaultValue={one("action")}
+                className={filterControl}
+              >
                 <option value="">Any action</option>
                 {actions.map((a) => (
                   <option key={a} value={a}>
@@ -137,7 +182,13 @@ export default async function AuditPage({
               </select>
             </FilterField>
             <FilterField label="Search" htmlFor="q" className="sm:col-span-2">
-              <input id="q" name="q" defaultValue={one("q")} placeholder="Action, record type or reason" className={filterControl} />
+              <input
+                id="q"
+                name="q"
+                defaultValue={one("q")}
+                placeholder="Action, record type or reason"
+                className={filterControl}
+              />
             </FilterField>
           </div>
         </FilterCard>
@@ -151,19 +202,49 @@ export default async function AuditPage({
             icon={<ScrollText className="h-7 w-7" />}
           />
         ) : (
-          <DataTable header={["When", "Who", "Action", "Record", "What changed", "Reason"]}>
+          <DataTable
+            header={[
+              "When",
+              "Who",
+              "Action",
+              "Record",
+              "What changed",
+              "Reason",
+            ]}
+          >
             {entries.map((e) => (
               <Row key={e.id}>
-                <Cell className="whitespace-nowrap text-ink-faint">{formatDateTime(e.created_at)}</Cell>
-                <Cell className="whitespace-nowrap">{e.actor_id ? (nameById.get(e.actor_id) ?? "Former member") : <span className="text-ink-faint">System</span>}</Cell>
-                <Cell>
-                  <Badge tone={e.action.includes("deleted") || e.action.includes("suspended") ? "danger" : "neutral"}>{e.action}</Badge>
+                <Cell className="whitespace-nowrap text-ink-faint">
+                  {formatDateTime(e.created_at)}
                 </Cell>
-                <Cell className="whitespace-nowrap text-ink-faint">{e.entity_type}</Cell>
+                <Cell className="whitespace-nowrap">
+                  {e.actor_id ? (
+                    (nameById.get(e.actor_id) ?? "Former member")
+                  ) : (
+                    <span className="text-ink-faint">System</span>
+                  )}
+                </Cell>
+                <Cell>
+                  <Badge
+                    tone={
+                      e.action.includes("deleted") ||
+                      e.action.includes("suspended")
+                        ? "danger"
+                        : "neutral"
+                    }
+                  >
+                    {e.action}
+                  </Badge>
+                </Cell>
+                <Cell className="whitespace-nowrap text-ink-faint">
+                  {e.entity_type}
+                </Cell>
                 <Cell className="max-w-[24rem]">
                   <Change before={e.before} after={e.after} />
                 </Cell>
-                <Cell className="max-w-[16rem] text-ink-faint">{e.reason ?? "—"}</Cell>
+                <Cell className="max-w-[16rem] text-ink-faint">
+                  {e.reason ?? "—"}
+                </Cell>
               </Row>
             ))}
           </DataTable>

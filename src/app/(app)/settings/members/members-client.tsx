@@ -3,11 +3,23 @@
 import { useState, useTransition } from "react";
 import { UserPlus, ShieldCheck, Ban, RotateCcw } from "lucide-react";
 import { Modal, ModalFormActions } from "@/components/ui/modal";
-import { Badge, Card, CardHeader, DataTable, Row, Cell, EmptyState } from "@/components/ui/primitives";
+import {
+  Badge,
+  Card,
+  CardHeader,
+  DataTable,
+  Row,
+  Cell,
+  EmptyState,
+} from "@/components/ui/primitives";
 import { FieldError } from "@/components/ui/field";
 import { formatDate } from "@/lib/utils";
 import type { MemberDetail, Role } from "@/lib/data/members";
-import { inviteMemberAction, setMemberRolesAction, setMemberStatusAction } from "./actions";
+import {
+  inviteMemberAction,
+  setMemberRolesAction,
+  setMemberStatusAction,
+} from "./actions";
 
 /**
  * Members and their roles.
@@ -19,7 +31,13 @@ import { inviteMemberAction, setMemberRolesAction, setMemberStatusAction } from 
  * tier-based notification has nobody to notify and "a named investigating
  * function" is unreachable.
  */
-export function MembersClient({ members, roles }: { members: MemberDetail[]; roles: Role[] }) {
+export function MembersClient({
+  members,
+  roles,
+}: {
+  members: MemberDetail[];
+  roles: Role[];
+}) {
   const [inviting, setInviting] = useState(false);
   const [editing, setEditing] = useState<MemberDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -29,7 +47,8 @@ export function MembersClient({ members, roles }: { members: MemberDetail[]; rol
   // Roles that describe a job in the process, listed first — they are what
   // somebody is usually here to assign.
   const ordered = [...roles].sort((a, b) => {
-    const rank = (n: string) => (n === "Tenant Administrator" ? 0 : n === "Member" ? 2 : 1);
+    const rank = (n: string) =>
+      n === "Tenant Administrator" ? 0 : n === "Member" ? 2 : 1;
     return rank(a.name) - rank(b.name) || a.name.localeCompare(b.name);
   });
 
@@ -39,7 +58,12 @@ export function MembersClient({ members, roles }: { members: MemberDetail[]; rol
       const next = m.status === "active" ? "suspended" : "active";
       const result = await setMemberStatusAction(m.user_id, next);
       if (!result.ok) setError(result.error);
-      else setNotice(next === "suspended" ? `${m.full_name ?? m.email} can no longer sign in to this workspace.` : `${m.full_name ?? m.email} has access again.`);
+      else
+        setNotice(
+          next === "suspended"
+            ? `${m.full_name ?? m.email} can no longer sign in to this workspace.`
+            : `${m.full_name ?? m.email} has access again.`,
+        );
     });
   }
 
@@ -47,7 +71,9 @@ export function MembersClient({ members, roles }: { members: MemberDetail[]; rol
     <div className="flex flex-col gap-4">
       {error && <FieldError>{error}</FieldError>}
       {notice && !error && (
-        <p className="rounded-lg border border-good/30 bg-good/10 px-3 py-2 text-sm text-good">{notice}</p>
+        <p className="rounded-lg border border-good/30 bg-good/10 px-3 py-2 text-sm text-good">
+          {notice}
+        </p>
       )}
 
       <Card>
@@ -86,11 +112,20 @@ export function MembersClient({ members, roles }: { members: MemberDetail[]; rol
                   </Cell>
                   <Cell>
                     {m.roles.length === 0 ? (
-                      <span className="text-xs text-ink-faint">No role — can sign in but do nothing</span>
+                      <span className="text-xs text-ink-faint">
+                        No role — can sign in but do nothing
+                      </span>
                     ) : (
                       <div className="flex flex-wrap gap-1">
                         {m.roles.map((r) => (
-                          <Badge key={r.id} tone={r.name === "Tenant Administrator" ? "info" : "neutral"}>
+                          <Badge
+                            key={r.id}
+                            tone={
+                              r.name === "Tenant Administrator"
+                                ? "info"
+                                : "neutral"
+                            }
+                          >
                             {r.name}
                           </Badge>
                         ))}
@@ -98,9 +133,13 @@ export function MembersClient({ members, roles }: { members: MemberDetail[]; rol
                     )}
                   </Cell>
                   <Cell>
-                    <Badge tone={m.status === "active" ? "good" : "danger"}>{m.status}</Badge>
+                    <Badge tone={m.status === "active" ? "good" : "danger"}>
+                      {m.status}
+                    </Badge>
                   </Cell>
-                  <Cell className="whitespace-nowrap text-ink-faint">{formatDate(m.created_at)}</Cell>
+                  <Cell className="whitespace-nowrap text-ink-faint">
+                    {formatDate(m.created_at)}
+                  </Cell>
                   <Cell className="whitespace-nowrap text-right">
                     <button
                       type="button"
@@ -120,7 +159,11 @@ export function MembersClient({ members, roles }: { members: MemberDetail[]; rol
                       disabled={pending}
                       className="inline-flex items-center gap-1 text-xs font-semibold text-ink-faint hover:text-danger disabled:opacity-50"
                     >
-                      {m.status === "active" ? <Ban className="h-3.5 w-3.5" /> : <RotateCcw className="h-3.5 w-3.5" />}
+                      {m.status === "active" ? (
+                        <Ban className="h-3.5 w-3.5" />
+                      ) : (
+                        <RotateCcw className="h-3.5 w-3.5" />
+                      )}
                       {m.status === "active" ? "Suspend" : "Reinstate"}
                     </button>
                   </Cell>
@@ -148,7 +191,9 @@ export function MembersClient({ members, roles }: { members: MemberDetail[]; rol
           roles={ordered}
           onClose={() => setEditing(null)}
           onDone={() => {
-            setNotice(`Roles updated for ${editing.full_name ?? editing.email}.`);
+            setNotice(
+              `Roles updated for ${editing.full_name ?? editing.email}.`,
+            );
             setEditing(null);
           }}
           onError={(e) => {
@@ -161,20 +206,41 @@ export function MembersClient({ members, roles }: { members: MemberDetail[]; rol
   );
 }
 
-function RoleChecklist({ roles, selected, onChange }: { roles: Role[]; selected: string[]; onChange: (ids: string[]) => void }) {
+function RoleChecklist({
+  roles,
+  selected,
+  onChange,
+}: {
+  roles: Role[];
+  selected: string[];
+  onChange: (ids: string[]) => void;
+}) {
   return (
     <div className="flex flex-col gap-1.5">
       {roles.map((r) => (
-        <label key={r.id} className="flex cursor-pointer items-start gap-2.5 rounded-lg border border-border p-2.5 hover:border-brand/40">
+        <label
+          key={r.id}
+          className="flex cursor-pointer items-start gap-2.5 rounded-lg border border-border p-2.5 hover:border-brand/40"
+        >
           <input
             type="checkbox"
             checked={selected.includes(r.id)}
-            onChange={(e) => onChange(e.target.checked ? [...selected, r.id] : selected.filter((id) => id !== r.id))}
+            onChange={(e) =>
+              onChange(
+                e.target.checked
+                  ? [...selected, r.id]
+                  : selected.filter((id) => id !== r.id),
+              )
+            }
             className="mt-0.5 h-4 w-4 shrink-0 accent-[var(--color-brand)]"
           />
           <span className="min-w-0">
             <span className="block text-sm font-medium text-ink">{r.name}</span>
-            {r.description && <span className="block text-xs text-ink-faint">{r.description}</span>}
+            {r.description && (
+              <span className="block text-xs text-ink-faint">
+                {r.description}
+              </span>
+            )}
           </span>
         </label>
       ))}
@@ -220,16 +286,21 @@ function InviteModal({
             setEmail("");
             setSelected([]);
             onDone(
-              result.status === "invited"
-                ? `Invitation sent to ${email.trim()}.`
-                : `${email.trim()} already had an account and has been added.`,
+              result.status !== "invited"
+                ? `${email.trim()} already had an account and has been added.`
+                : result.mailed
+                  ? `Invitation sent to ${email.trim()}.`
+                  : `${email.trim()} was added, but the invitation email could not be sent. Ask them to use "Forgot your password?" on the sign-in page to set a password.`,
             );
           });
         }}
       >
         <div className="flex flex-col gap-3">
           <div className="flex flex-col gap-1.5">
-            <label htmlFor="invite-email" className="text-xs font-medium text-ink-faint">
+            <label
+              htmlFor="invite-email"
+              className="text-xs font-medium text-ink-faint"
+            >
               Email address
             </label>
             <input
@@ -242,16 +313,25 @@ function InviteModal({
               className="h-10 w-full rounded-lg border border-border bg-surface px-3 text-sm text-ink focus:border-brand focus:outline-none"
             />
             <p className="text-xs text-ink-faint">
-              No Bio email account is required — external representatives and distributors can be invited at any address.
+              No Bio email account is required — external representatives and
+              distributors can be invited at any address.
             </p>
           </div>
 
           <div className="flex flex-col gap-1.5">
             <p className="text-xs font-medium text-ink-faint">Roles</p>
-            <RoleChecklist roles={roles} selected={selected} onChange={setSelected} />
+            <RoleChecklist
+              roles={roles}
+              selected={selected}
+              onChange={setSelected}
+            />
           </div>
         </div>
-        <ModalFormActions onCancel={onClose} submitLabel="Send invitation" busy={pending} />
+        <ModalFormActions
+          onCancel={onClose}
+          submitLabel="Send invitation"
+          busy={pending}
+        />
       </form>
     </Modal>
   );
@@ -270,7 +350,9 @@ function RolesModal({
   onDone: () => void;
   onError: (message: string) => void;
 }) {
-  const [selected, setSelected] = useState<string[]>(member.roles.map((r) => r.id));
+  const [selected, setSelected] = useState<string[]>(
+    member.roles.map((r) => r.id),
+  );
   const [pending, startTransition] = useTransition();
 
   return (
@@ -292,8 +374,16 @@ function RolesModal({
           });
         }}
       >
-        <RoleChecklist roles={roles} selected={selected} onChange={setSelected} />
-        <ModalFormActions onCancel={onClose} submitLabel="Save roles" busy={pending} />
+        <RoleChecklist
+          roles={roles}
+          selected={selected}
+          onChange={setSelected}
+        />
+        <ModalFormActions
+          onCancel={onClose}
+          submitLabel="Save roles"
+          busy={pending}
+        />
       </form>
     </Modal>
   );

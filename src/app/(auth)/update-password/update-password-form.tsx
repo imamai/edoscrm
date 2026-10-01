@@ -1,15 +1,21 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { updatePassword, type UpdatePasswordState } from "./actions";
 import { Button } from "@/components/ui/button";
-import { Field, FieldError } from "@/components/ui/field";
+import { FieldError } from "@/components/ui/field";
+import { PasswordField } from "@/components/ui/password-field";
 
 const initial: UpdatePasswordState = { error: null };
 
 export function UpdatePasswordForm() {
   const [state, action, pending] = useActionState(updatePassword, initial);
+  const [password, setPassword] = useState("");
+  const [confirm, setConfirm] = useState("");
+
+  // Only once there is something in the second box to disagree with.
+  const mismatch = confirm.length > 0 && confirm !== password;
   // The reset link carries this; an invitation link does not.
   const resetting = useSearchParams().get("type") === "recovery";
 
@@ -25,20 +31,35 @@ export function UpdatePasswordForm() {
       </p>
 
       <form action={action} className="mt-7 flex flex-col gap-4">
-        <Field
+        <PasswordField
           label={resetting ? "New password" : "Password"}
           name="password"
-          type="password"
           required
           autoFocus
-          autoComplete="new-password"
           minLength={8}
+          hint="At least 8 characters"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
         />
-        <p className="-mt-2 text-xs text-ink-faint">At least 8 characters</p>
+
+        <PasswordField
+          label={resetting ? "Confirm the new password" : "Type it again"}
+          name="password_confirm"
+          required
+          minLength={8}
+          value={confirm}
+          onChange={(e) => setConfirm(e.target.value)}
+          error={mismatch ? "These don't match yet." : null}
+        />
 
         {state.error && <FieldError>{state.error}</FieldError>}
 
-        <Button type="submit" busy={pending} className="h-12 w-full text-base">
+        <Button
+          type="submit"
+          busy={pending}
+          disabled={password.length < 8 || confirm !== password}
+          className="h-12 w-full text-base"
+        >
           {pending ? "Saving…" : "Save and continue"}
         </Button>
       </form>

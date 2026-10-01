@@ -2,7 +2,11 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { resolveSession } from "@/lib/data/session";
 import { hasPermission } from "@/lib/auth/permissions";
-import { getPlans, getSubscription, getSubscriptionPayments } from "@/lib/data/billing";
+import {
+  getPlans,
+  getSubscription,
+  getSubscriptionPayments,
+} from "@/lib/data/billing";
 import {
   CURRENCY,
   PAYMENT_NOTE,
@@ -31,7 +35,10 @@ const PROVIDER: Record<string, string> = {
   other: "Other",
 };
 
-const STATUS: Record<EffectiveStatus, { label: string; tone: "info" | "warning" | "good" | "neutral" }> = {
+const STATUS: Record<
+  EffectiveStatus,
+  { label: string; tone: "info" | "warning" | "good" | "neutral" }
+> = {
   trialing: { label: "Free trial", tone: "info" },
   trial_over: { label: "Trial ended", tone: "warning" },
   active: { label: "Paid", tone: "good" },
@@ -61,8 +68,8 @@ export default async function BillingPage() {
   if (!subscription) {
     return (
       <div className="mx-auto max-w-md rounded-xl border border-dashed border-border px-6 py-10 text-center text-sm text-ink-faint">
-        This workspace has no subscription record yet. Contact EDOS Centre and we
-        will set one up.
+        This workspace has no subscription record yet. Contact EDOS Centre and
+        we will set one up.
       </div>
     );
   }
@@ -96,16 +103,16 @@ export default async function BillingPage() {
               <strong className="font-semibold">
                 {on(subscription.trialEndsAt)}
               </strong>{" "}
-              — {trialLeft} {trialLeft === 1 ? "day" : "days"} from now. Nothing has
-              been charged, and nothing will be until you pay an invoice.
+              — {trialLeft} {trialLeft === 1 ? "day" : "days"} from now. Nothing
+              has been charged, and nothing will be until you pay an invoice.
             </p>
           )}
 
           {state === "trial_over" && (
             <p className="text-sm leading-relaxed text-ink">
               The free trial ended {on(subscription.trialEndsAt)}. Your records
-              are untouched and the workspace still works — but the subscription is
-              now payable. Record the payment below once it has been made.
+              are untouched and the workspace still works — but the subscription
+              is now payable. Record the payment below once it has been made.
             </p>
           )}
 
@@ -128,11 +135,14 @@ export default async function BillingPage() {
 
           {state === "cancelled" && (
             <p className="text-sm leading-relaxed text-ink">
-              This subscription is cancelled. Talk to EDOS Centre to start it again.
+              This subscription is cancelled. Talk to EDOS Centre to start it
+              again.
             </p>
           )}
 
-          <p className="text-xs leading-relaxed text-ink-faint">{PAYMENT_NOTE}</p>
+          <p className="text-xs leading-relaxed text-ink-faint">
+            {PAYMENT_NOTE}
+          </p>
         </CardBody>
       </Card>
 
@@ -142,7 +152,10 @@ export default async function BillingPage() {
           title="Plan"
           subtitle="What you are invoiced for each month"
           action={
-            <Link href="/pricing" className="text-sm font-medium text-brand hover:underline">
+            <Link
+              href="/pricing"
+              className="text-sm font-medium text-brand hover:underline"
+            >
               Compare plans
             </Link>
           }
@@ -186,15 +199,24 @@ export default async function BillingPage() {
                 </thead>
                 <tbody>
                   {payments.map((p) => (
-                    <tr key={p.id} className="border-b border-border last:border-0">
+                    <tr
+                      key={p.id}
+                      className="border-b border-border last:border-0"
+                    >
                       <td className="py-2.5 pr-3 whitespace-nowrap text-ink">
                         {formatDate(p.paidAt)}
                       </td>
                       <td className="py-2.5 pr-3 text-ink-soft">
-                        {p.kind === "onboarding" ? "Onboarding" : "Subscription"}
+                        {p.kind === "onboarding"
+                          ? "Onboarding"
+                          : "Subscription"}
                       </td>
-                      <td className="py-2.5 pr-3 text-ink-soft">{PROVIDER[p.provider] ?? p.provider}</td>
-                      <td className="py-2.5 pr-3 text-ink-soft">{p.reference ?? "—"}</td>
+                      <td className="py-2.5 pr-3 text-ink-soft">
+                        {PROVIDER[p.provider] ?? p.provider}
+                      </td>
+                      <td className="py-2.5 pr-3 text-ink-soft">
+                        {p.reference ?? "—"}
+                      </td>
                       <td className="py-2.5 pr-3 text-right text-ink tabular-nums">
                         {moneyLabel(p.amountCents, p.currency)}
                       </td>

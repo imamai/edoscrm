@@ -2,7 +2,11 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { resolveSession } from "@/lib/data/session";
 import { hasPermission } from "@/lib/auth/permissions";
-import { getTenantSettings, getCategories, getKpiTargets } from "@/lib/data/settings";
+import {
+  getTenantSettings,
+  getCategories,
+  getKpiTargets,
+} from "@/lib/data/settings";
 import { getSlaRules } from "@/lib/data/sla";
 import { BackLink } from "@/components/ui/back-link";
 import { EmptyState } from "@/components/ui/primitives";
@@ -37,14 +41,22 @@ export default async function RulesPage() {
     <div className="flex flex-col gap-4">
       <div className="flex flex-col gap-1">
         <BackLink href="/settings" label="Settings" />
-        <h1 className="text-xl font-semibold text-ink">Rules &amp; categories</h1>
+        <h1 className="text-xl font-semibold text-ink">
+          Rules &amp; categories
+        </h1>
         <p className="text-sm text-ink-faint">
-          How this workspace decides what is urgent, what counts as a pattern, and what good performance looks like.
-          Everything here starts at the values the complaint brief specifies.
+          How this workspace decides what is urgent, what counts as a pattern,
+          and what good performance looks like. Everything here starts at the
+          values the complaint brief specifies.
         </p>
       </div>
 
-      <RulesClient settings={settings} slaRules={slaRules} categories={categories} targets={targets} />
+      <RulesClient
+        settings={settings}
+        slaRules={slaRules}
+        categories={categories}
+        targets={targets}
+      />
     </div>
   );
 }

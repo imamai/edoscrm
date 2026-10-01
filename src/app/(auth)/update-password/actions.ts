@@ -20,7 +20,13 @@ export async function updatePassword(
   form: FormData,
 ): Promise<UpdatePasswordState> {
   const password = String(form.get("password") ?? "");
-  if (password.length < 8) return { error: "Password must be at least 8 characters." };
+  const confirm = String(form.get("password_confirm") ?? "");
+  if (password.length < 8)
+    return { error: "Password must be at least 8 characters." };
+  // Checked here as well as in the browser: the form is the convenience, this
+  // is the guarantee.
+  if (confirm !== password)
+    return { error: "Those two passwords don't match." };
 
   const supabase = await createClient();
   const {

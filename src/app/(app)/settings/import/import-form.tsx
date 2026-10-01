@@ -24,11 +24,18 @@ export function ImportForm() {
           className="rounded-lg border border-border bg-surface px-2.5 py-2 text-sm text-ink file:mr-3 file:rounded-md file:border-0 file:bg-background file:px-2.5 file:py-1 file:text-xs file:font-medium"
         />
       </div>
-      {state.error && <p className="rounded-lg bg-danger/10 px-3 py-2 text-sm text-danger">{state.error}</p>}
+      {state.error && (
+        <p className="rounded-lg bg-danger/10 px-3 py-2 text-sm text-danger">
+          {state.error}
+        </p>
+      )}
       {state.imported !== null && (
         <p className="rounded-lg bg-good/10 px-3 py-2 text-sm text-good">
           Imported {state.imported} complaint{state.imported === 1 ? "" : "s"}
-          {state.skipped > 0 ? `, skipped ${state.skipped} row(s) with no title or a numbering error` : ""}.
+          {state.skipped > 0
+            ? `, skipped ${state.skipped} row(s) with no title or a numbering error`
+            : ""}
+          .
         </p>
       )}
       <div>

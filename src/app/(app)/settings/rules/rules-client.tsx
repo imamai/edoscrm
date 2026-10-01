@@ -17,8 +17,10 @@ import {
   setCategoryActiveAction,
 } from "./actions";
 
-const control = "h-10 w-full rounded-lg border border-border bg-surface px-3 text-sm text-ink focus:border-brand focus:outline-none";
-const numberControl = "h-10 w-20 rounded-lg border border-border bg-surface px-2 text-sm text-ink tnum focus:border-brand focus:outline-none";
+const control =
+  "h-10 w-full rounded-lg border border-border bg-surface px-3 text-sm text-ink focus:border-brand focus:outline-none";
+const numberControl =
+  "h-10 w-20 rounded-lg border border-border bg-surface px-2 text-sm text-ink tnum focus:border-brand focus:outline-none";
 
 /** Deadlines are stored in minutes but nobody thinks in minutes. */
 function toHours(minutes: number | null): string {
@@ -45,7 +47,10 @@ export function RulesClient({
   const [saved, setSaved] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
-  function submit(key: string, action: (fd: FormData) => Promise<{ ok: boolean; error?: string }>) {
+  function submit(
+    key: string,
+    action: (fd: FormData) => Promise<{ ok: boolean; error?: string }>,
+  ) {
     return (e: React.FormEvent<HTMLFormElement>) => {
       e.preventDefault();
       const fd = new FormData(e.currentTarget);
@@ -71,14 +76,21 @@ export function RulesClient({
           action={<Saved shown={saved === "sla"} />}
         />
         <CardBody>
-          <form onSubmit={submit("sla", saveSlaAction)} className="flex flex-col gap-3">
+          <form
+            onSubmit={submit("sla", saveSlaAction)}
+            className="flex flex-col gap-3"
+          >
             <div className="scroll-slim overflow-x-auto">
               <table className="w-full min-w-[34rem] text-left text-sm">
                 <thead>
                   <tr className="text-[11px] uppercase tracking-wide text-ink-faint">
                     <th className="pb-2 pr-4 font-semibold">Severity</th>
-                    <th className="pb-2 pr-4 font-semibold">Acknowledge within</th>
-                    <th className="pb-2 pr-4 font-semibold">Resolution plan within</th>
+                    <th className="pb-2 pr-4 font-semibold">
+                      Acknowledge within
+                    </th>
+                    <th className="pb-2 pr-4 font-semibold">
+                      Resolution plan within
+                    </th>
                     <th className="pb-2 font-semibold">RCA within</th>
                   </tr>
                 </thead>
@@ -86,19 +98,62 @@ export function RulesClient({
                   {(["T1", "T2", "T3"] as Severity[]).map((s) => (
                     <tr key={s} className="border-t border-border">
                       <td className="py-2 pr-4">
-                        <Badge tone={s === "T1" ? "danger" : s === "T2" ? "warning" : "neutral"}>{s}</Badge>
+                        <Badge
+                          tone={
+                            s === "T1"
+                              ? "danger"
+                              : s === "T2"
+                                ? "warning"
+                                : "neutral"
+                          }
+                        >
+                          {s}
+                        </Badge>
                       </td>
                       <td className="py-2 pr-4">
-                        <input name={`${s}_ack`} type="number" min="1" step="0.25" defaultValue={toHours(slaRules[s]?.acknowledgement_minutes ?? null)} className={numberControl} />
-                        <span className="ml-1.5 text-xs text-ink-faint">hours</span>
+                        <input
+                          name={`${s}_ack`}
+                          type="number"
+                          min="1"
+                          step="0.25"
+                          defaultValue={toHours(
+                            slaRules[s]?.acknowledgement_minutes ?? null,
+                          )}
+                          className={numberControl}
+                        />
+                        <span className="ml-1.5 text-xs text-ink-faint">
+                          hours
+                        </span>
                       </td>
                       <td className="py-2 pr-4">
-                        <input name={`${s}_plan`} type="number" min="0" step="0.25" defaultValue={toHours(slaRules[s]?.resolution_plan_minutes ?? null)} className={numberControl} />
-                        <span className="ml-1.5 text-xs text-ink-faint">hours</span>
+                        <input
+                          name={`${s}_plan`}
+                          type="number"
+                          min="0"
+                          step="0.25"
+                          defaultValue={toHours(
+                            slaRules[s]?.resolution_plan_minutes ?? null,
+                          )}
+                          className={numberControl}
+                        />
+                        <span className="ml-1.5 text-xs text-ink-faint">
+                          hours
+                        </span>
                       </td>
                       <td className="py-2">
-                        <input name={`${s}_rca`} type="number" min="0" step="0.25" defaultValue={toHours(slaRules[s]?.rca_minutes ?? null)} className={numberControl} />
-                        <span className="ml-1.5 text-xs text-ink-faint">hours</span>
+                        <input
+                          name={`${s}_rca`}
+                          type="number"
+                          min="0"
+                          step="0.25"
+                          defaultValue={toHours(
+                            slaRules[s]?.rca_minutes ?? null,
+                          )}
+                          className={numberControl}
+                        />
+                        <span className="ml-1.5 text-xs text-ink-faint">
+                          hours
+                        </span>
                       </td>
                     </tr>
                   ))}
@@ -106,8 +161,10 @@ export function RulesClient({
               </table>
             </div>
             <p className="text-xs text-ink-faint">
-              A blank deadline means there isn&rsquo;t one. T3 has no RCA deadline by default: the brief asks that a minor
-              complaint be logged, acknowledged and reviewed weekly, not investigated to a deadline.
+              A blank deadline means there isn&rsquo;t one. T3 has no RCA
+              deadline by default: the brief asks that a minor complaint be
+              logged, acknowledged and reviewed weekly, not investigated to a
+              deadline.
             </p>
             <SaveButton pending={pending} />
           </form>
@@ -122,14 +179,53 @@ export function RulesClient({
           action={<Saved shown={saved === "thresholds"} />}
         />
         <CardBody>
-          <form onSubmit={submit("thresholds", saveThresholdsAction)} className="flex flex-col gap-3">
-            <Threshold label="Warn — watch this batch" countName="warn_count" countValue={settings.warn_count} unitName="warn_hours" unitValue={settings.warn_hours} unit="hours" />
-            <Threshold label="Escalate to T2" countName="escalate_count" countValue={settings.escalate_count} unitName="escalate_hours" unitValue={settings.escalate_hours} unit="hours" />
-            <Threshold label="RCA becomes mandatory" countName="mandatory_rca_count" countValue={settings.mandatory_rca_count} unitName="mandatory_rca_hours" unitValue={settings.mandatory_rca_hours} unit="hours" />
-            <Threshold label="Withdrawal assessment required" countName="withdrawal_count" countValue={settings.withdrawal_count} unitName="withdrawal_hours" unitValue={settings.withdrawal_hours} unit="hours" />
-            <Threshold label="T3 complaints escalate to T2" countName="t3_escalate_count" countValue={settings.t3_escalate_count} unitName="t3_escalate_days" unitValue={settings.t3_escalate_days} unit="days" />
+          <form
+            onSubmit={submit("thresholds", saveThresholdsAction)}
+            className="flex flex-col gap-3"
+          >
+            <Threshold
+              label="Warn — watch this batch"
+              countName="warn_count"
+              countValue={settings.warn_count}
+              unitName="warn_hours"
+              unitValue={settings.warn_hours}
+              unit="hours"
+            />
+            <Threshold
+              label="Escalate to T2"
+              countName="escalate_count"
+              countValue={settings.escalate_count}
+              unitName="escalate_hours"
+              unitValue={settings.escalate_hours}
+              unit="hours"
+            />
+            <Threshold
+              label="RCA becomes mandatory"
+              countName="mandatory_rca_count"
+              countValue={settings.mandatory_rca_count}
+              unitName="mandatory_rca_hours"
+              unitValue={settings.mandatory_rca_hours}
+              unit="hours"
+            />
+            <Threshold
+              label="Withdrawal assessment required"
+              countName="withdrawal_count"
+              countValue={settings.withdrawal_count}
+              unitName="withdrawal_hours"
+              unitValue={settings.withdrawal_hours}
+              unit="hours"
+            />
+            <Threshold
+              label="T3 complaints escalate to T2"
+              countName="t3_escalate_count"
+              countValue={settings.t3_escalate_count}
+              unitName="t3_escalate_days"
+              unitValue={settings.t3_escalate_days}
+              unit="days"
+            />
             <p className="text-xs text-ink-faint">
-              Each threshold has to be higher than the one above it, so a warning always comes before an escalation.
+              Each threshold has to be higher than the one above it, so a
+              warning always comes before an escalation.
             </p>
             <SaveButton pending={pending} />
           </form>
@@ -144,16 +240,29 @@ export function RulesClient({
           action={<Saved shown={saved === "targets"} />}
         />
         <CardBody>
-          <form onSubmit={submit("targets", saveTargetsAction)} className="flex flex-col gap-3">
+          <form
+            onSubmit={submit("targets", saveTargetsAction)}
+            className="flex flex-col gap-3"
+          >
             <div className="grid gap-3 sm:grid-cols-2">
               {(Object.keys(KPI_LABELS) as KpiKey[]).map((key) => {
                 const t = targets[key];
                 const isTrend = t?.direction === "down";
                 return (
-                  <div key={key} className="flex items-center justify-between gap-3 rounded-lg border border-border px-3 py-2">
-                    <label htmlFor={`target_${key}`} className="min-w-0 text-sm text-ink">
+                  <div
+                    key={key}
+                    className="flex items-center justify-between gap-3 rounded-lg border border-border px-3 py-2"
+                  >
+                    <label
+                      htmlFor={`target_${key}`}
+                      className="min-w-0 text-sm text-ink"
+                    >
                       {KPI_LABELS[key]}
-                      {isTrend && <span className="block text-xs text-ink-faint">Goal is a downward trend, not a number</span>}
+                      {isTrend && (
+                        <span className="block text-xs text-ink-faint">
+                          Goal is a downward trend, not a number
+                        </span>
+                      )}
                     </label>
                     <div className="flex shrink-0 items-center gap-1">
                       <input
@@ -189,7 +298,10 @@ export function RulesClient({
           action={<Saved shown={saved === "ops"} />}
         />
         <CardBody>
-          <form onSubmit={submit("ops", saveOperationsAction)} className="flex flex-col gap-3">
+          <form
+            onSubmit={submit("ops", saveOperationsAction)}
+            className="flex flex-col gap-3"
+          >
             <Toggle
               name="auto_acknowledge"
               defaultChecked={settings.auto_acknowledge}
@@ -209,7 +321,10 @@ export function RulesClient({
               hint="First day of each month, covering the month just ended."
             />
             <div className="flex flex-col gap-1.5 border-t border-border pt-3">
-              <label htmlFor="retention_days" className="text-sm font-medium text-ink">
+              <label
+                htmlFor="retention_days"
+                className="text-sm font-medium text-ink"
+              >
                 Keep complainant contact details for
               </label>
               <div className="flex items-center gap-2">
@@ -222,11 +337,15 @@ export function RulesClient({
                   placeholder="Indefinitely"
                   className={`${control} max-w-[12rem]`}
                 />
-                <span className="text-xs text-ink-faint">days after closure</span>
+                <span className="text-xs text-ink-faint">
+                  days after closure
+                </span>
               </div>
               <p className="text-xs text-ink-faint">
-                The complaint, its investigation and its quality record are never deleted. Only the complainant&rsquo;s name,
-                email and phone number are removed once this period has passed. Leave blank to keep them indefinitely.
+                The complaint, its investigation and its quality record are
+                never deleted. Only the complainant&rsquo;s name, email and
+                phone number are removed once this period has passed. Leave
+                blank to keep them indefinitely.
               </p>
             </div>
             <SaveButton pending={pending} />
@@ -269,18 +388,47 @@ function Threshold({
   return (
     <div className="flex flex-wrap items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm">
       <span className="min-w-[14rem] flex-1 text-ink">{label}</span>
-      <input name={countName} type="number" min="1" defaultValue={countValue} className={numberControl} aria-label={`${label} — complaint count`} />
+      <input
+        name={countName}
+        type="number"
+        min="1"
+        defaultValue={countValue}
+        className={numberControl}
+        aria-label={`${label} — complaint count`}
+      />
       <span className="text-xs text-ink-faint">complaints within</span>
-      <input name={unitName} type="number" min="1" defaultValue={unitValue} className={numberControl} aria-label={`${label} — window`} />
+      <input
+        name={unitName}
+        type="number"
+        min="1"
+        defaultValue={unitValue}
+        className={numberControl}
+        aria-label={`${label} — window`}
+      />
       <span className="text-xs text-ink-faint">{unit}</span>
     </div>
   );
 }
 
-function Toggle({ name, defaultChecked, label, hint }: { name: string; defaultChecked: boolean; label: string; hint: string }) {
+function Toggle({
+  name,
+  defaultChecked,
+  label,
+  hint,
+}: {
+  name: string;
+  defaultChecked: boolean;
+  label: string;
+  hint: string;
+}) {
   return (
     <label className="flex cursor-pointer items-start gap-2.5">
-      <input type="checkbox" name={name} defaultChecked={defaultChecked} className="mt-0.5 h-4 w-4 shrink-0 accent-[var(--color-brand)]" />
+      <input
+        type="checkbox"
+        name={name}
+        defaultChecked={defaultChecked}
+        className="mt-0.5 h-4 w-4 shrink-0 accent-[var(--color-brand)]"
+      />
       <span className="min-w-0">
         <span className="block text-sm font-medium text-ink">{label}</span>
         <span className="block text-xs text-ink-faint">{hint}</span>
@@ -289,36 +437,59 @@ function Toggle({ name, defaultChecked, label, hint }: { name: string; defaultCh
   );
 }
 
-function CategoriesCard({ categories, onError }: { categories: Category[]; onError: (m: string) => void }) {
+function CategoriesCard({
+  categories,
+  onError,
+}: {
+  categories: Category[];
+  onError: (m: string) => void;
+}) {
   const [name, setName] = useState("");
   const [pending, startTransition] = useTransition();
 
   return (
     <Card>
-      <CardHeader title="Complaint categories" subtitle="What a complaint can be classified as. Retiring one keeps it on the complaints already filed under it." />
+      <CardHeader
+        title="Complaint categories"
+        subtitle="What a complaint can be classified as. Retiring one keeps it on the complaints already filed under it."
+      />
       <CardBody className="flex flex-col gap-3">
         <div className="flex flex-wrap gap-1.5">
           {categories.map((c) => (
             <span
               key={c.id}
               className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs ${
-                c.is_active ? "border-border bg-background text-ink" : "border-dashed border-border text-ink-faint"
+                c.is_active
+                  ? "border-border bg-background text-ink"
+                  : "border-dashed border-border text-ink-faint"
               }`}
             >
               {c.name}
               <button
                 type="button"
                 disabled={pending}
-                title={c.is_active ? "Retire this category" : "Bring this category back"}
+                title={
+                  c.is_active
+                    ? "Retire this category"
+                    : "Bring this category back"
+                }
                 onClick={() =>
                   startTransition(async () => {
-                    const result = await setCategoryActiveAction(c.id, !c.is_active);
-                    if (!result.ok) onError(result.error ?? "That didn't save.");
+                    const result = await setCategoryActiveAction(
+                      c.id,
+                      !c.is_active,
+                    );
+                    if (!result.ok)
+                      onError(result.error ?? "That didn't save.");
                   })
                 }
                 className="text-ink-faint hover:text-ink disabled:opacity-50"
               >
-                {c.is_active ? <Archive className="h-3 w-3" /> : <Undo2 className="h-3 w-3" />}
+                {c.is_active ? (
+                  <Archive className="h-3 w-3" />
+                ) : (
+                  <Undo2 className="h-3 w-3" />
+                )}
               </button>
             </span>
           ))}

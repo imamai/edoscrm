@@ -18,9 +18,15 @@ export interface BillingState {
  * that actually holds when a request does not come through this form.
  */
 
-export async function choosePlan(_prev: BillingState, form: FormData): Promise<BillingState> {
+export async function choosePlan(
+  _prev: BillingState,
+  form: FormData,
+): Promise<BillingState> {
   const session = await resolveSession();
-  if (session.kind !== "ok" || !(await hasPermission(session.tenant.id, "admin.org.manage"))) {
+  if (
+    session.kind !== "ok" ||
+    !(await hasPermission(session.tenant.id, "admin.org.manage"))
+  ) {
     return { error: "Only an administrator can change the plan.", ok: null };
   }
 
@@ -33,20 +39,29 @@ export async function choosePlan(_prev: BillingState, form: FormData): Promise<B
     p_plan_code: code,
   });
 
-  if (error) return { error: error.message.replace(/^edoscrm: /, ""), ok: null };
+  if (error)
+    return { error: error.message.replace(/^edoscrm: /, ""), ok: null };
 
   revalidatePath("/settings/billing");
   return { error: null, ok: "Plan updated." };
 }
 
-export async function recordPayment(_prev: BillingState, form: FormData): Promise<BillingState> {
+export async function recordPayment(
+  _prev: BillingState,
+  form: FormData,
+): Promise<BillingState> {
   const session = await resolveSession();
-  if (session.kind !== "ok" || !(await hasPermission(session.tenant.id, "admin.org.manage"))) {
+  if (
+    session.kind !== "ok" ||
+    !(await hasPermission(session.tenant.id, "admin.org.manage"))
+  ) {
     return { error: "Only an administrator can record a payment.", ok: null };
   }
 
   const kind = String(form.get("kind") ?? "subscription");
-  const amount = Number(String(form.get("amount") ?? "").replace(/[^\d.]/g, ""));
+  const amount = Number(
+    String(form.get("amount") ?? "").replace(/[^\d.]/g, ""),
+  );
   const months = Number(form.get("months") ?? 1);
 
   if (!Number.isFinite(amount) || amount <= 0) {
@@ -73,7 +88,8 @@ export async function recordPayment(_prev: BillingState, form: FormData): Promis
     p_note: String(form.get("note") ?? ""),
   });
 
-  if (error) return { error: error.message.replace(/^edoscrm: /, ""), ok: null };
+  if (error)
+    return { error: error.message.replace(/^edoscrm: /, ""), ok: null };
 
   revalidatePath("/settings/billing");
   revalidatePath("/dashboard");

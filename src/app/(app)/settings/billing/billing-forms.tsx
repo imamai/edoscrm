@@ -69,15 +69,23 @@ export function PlanChooser({
                   </span>
                 )}
               </span>
-              <span className="mt-2 text-lg font-semibold text-ink tabular-nums">{priceLabel(plan)}</span>
+              <span className="mt-2 text-lg font-semibold text-ink tabular-nums">
+                {priceLabel(plan)}
+              </span>
               <span className="text-xs text-ink-faint">
                 per {plan.billingPeriod} · {seatLabel(plan)}
               </span>
               {selected && (
                 <ul className="mt-3 flex flex-col gap-1.5 border-t border-border pt-3">
                   {plan.features.slice(0, 4).map((f) => (
-                    <li key={f} className="flex items-start gap-1.5 text-xs text-ink-soft">
-                      <Check className="mt-0.5 h-3 w-3 shrink-0 text-good" aria-hidden="true" />
+                    <li
+                      key={f}
+                      className="flex items-start gap-1.5 text-xs text-ink-soft"
+                    >
+                      <Check
+                        className="mt-0.5 h-3 w-3 shrink-0 text-good"
+                        aria-hidden="true"
+                      />
                       <span>{f}</span>
                     </li>
                   ))}
@@ -92,19 +100,32 @@ export function PlanChooser({
 
       <div className="flex items-center gap-3">
         <Button type="submit" busy={pending} disabled={picked === current}>
-          {pending ? "Saving" : picked === current ? "This is your plan" : `Move to ${picked}`}
+          {pending
+            ? "Saving"
+            : picked === current
+              ? "This is your plan"
+              : `Move to ${picked}`}
         </Button>
         <p className="text-xs text-ink-faint">
-          Changing the plan does not charge anything. It sets what you will be invoiced for.
+          Changing the plan does not charge anything. It sets what you will be
+          invoiced for.
         </p>
       </div>
     </form>
   );
 }
 
-export function PaymentForm({ plans, current }: { plans: Plan[]; current: PlanCode }) {
+export function PaymentForm({
+  plans,
+  current,
+}: {
+  plans: Plan[];
+  current: PlanCode;
+}) {
   const [state, action, pending] = useActionState(recordPayment, initial);
-  const [kind, setKind] = useState<"subscription" | "onboarding">("subscription");
+  const [kind, setKind] = useState<"subscription" | "onboarding">(
+    "subscription",
+  );
 
   return (
     <form action={action} className="flex flex-col gap-4">
@@ -113,7 +134,9 @@ export function PaymentForm({ plans, current }: { plans: Plan[]; current: PlanCo
           label="What was paid for"
           name="kind"
           value={kind}
-          onChange={(e) => setKind(e.target.value as "subscription" | "onboarding")}
+          onChange={(e) =>
+            setKind(e.target.value as "subscription" | "onboarding")
+          }
         >
           <option value="subscription">Subscription</option>
           <option value="onboarding">One-off onboarding fee</option>
@@ -135,8 +158,14 @@ export function PaymentForm({ plans, current }: { plans: Plan[]; current: PlanCo
         </SelectField>
 
         <div className="flex flex-col gap-1">
-          <Field label="Reference" name="reference" placeholder="e.g. SJ48KD91XM" />
-          <p className="text-xs text-ink-faint">The M-Pesa code or bank reference</p>
+          <Field
+            label="Reference"
+            name="reference"
+            placeholder="e.g. SJ48KD91XM"
+          />
+          <p className="text-xs text-ink-faint">
+            The M-Pesa code or bank reference
+          </p>
         </div>
 
         <Field
@@ -149,8 +178,17 @@ export function PaymentForm({ plans, current }: { plans: Plan[]; current: PlanCo
 
         {kind === "subscription" && (
           <div className="flex flex-col gap-1">
-            <Field label="Months covered" name="months" type="number" min={1} defaultValue={1} required />
-            <p className="text-xs text-ink-faint">The paid period extends by this many months</p>
+            <Field
+              label="Months covered"
+              name="months"
+              type="number"
+              min={1}
+              defaultValue={1}
+              required
+            />
+            <p className="text-xs text-ink-faint">
+              The paid period extends by this many months
+            </p>
           </div>
         )}
 
@@ -160,7 +198,11 @@ export function PaymentForm({ plans, current }: { plans: Plan[]; current: PlanCo
         </div>
       </div>
 
-      <Field label="Note" name="note" placeholder="Optional — what this covers" />
+      <Field
+        label="Note"
+        name="note"
+        placeholder="Optional — what this covers"
+      />
 
       <Notice state={state} />
 

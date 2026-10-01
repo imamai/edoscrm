@@ -1,6 +1,5 @@
 import type { LucideIcon } from "lucide-react";
 import {
-  CreditCard,
   LayoutDashboard,
   MessageSquareWarning,
   ListTodo,
@@ -8,19 +7,24 @@ import {
   LineChart,
   Settings,
   ShieldCheck,
-  Upload,
   Sparkles,
-  Users,
   UserRound,
   PackageX,
   Inbox,
   FileCheck2,
-  ScrollText,
-  SlidersHorizontal,
 } from "lucide-react";
 
-export type NavItem = { label: string; href: string; icon: LucideIcon; permission?: string };
-export type NavGroup = { label: string; items: NavItem[]; platformOnly?: boolean };
+export type NavItem = {
+  label: string;
+  href: string;
+  icon: LucideIcon;
+  permission?: string;
+};
+export type NavGroup = {
+  label: string;
+  items: NavItem[];
+  platformOnly?: boolean;
+};
 
 /**
  * Grouped from the start (EDOSPMIS pattern) — a new area adds itself here
@@ -40,9 +44,18 @@ export const NAV_GROUPS: NavGroup[] = [
   {
     label: "Complaints",
     items: [
-      { label: "All complaints", href: "/complaints", icon: MessageSquareWarning },
+      {
+        label: "All complaints",
+        href: "/complaints",
+        icon: MessageSquareWarning,
+      },
       { label: "Contacts", href: "/contacts", icon: UserRound },
-      { label: "Email inbox", href: "/inbox", icon: Inbox, permission: "complaints.create" },
+      {
+        label: "Email inbox",
+        href: "/inbox",
+        icon: Inbox,
+        permission: "complaints.create",
+      },
     ],
   },
   {
@@ -50,7 +63,12 @@ export const NAV_GROUPS: NavGroup[] = [
     items: [
       { label: "Tasks", href: "/tasks", icon: ListTodo },
       { label: "Product actions", href: "/product-actions", icon: PackageX },
-      { label: "RCA summaries", href: "/rca-summaries", icon: FileCheck2, permission: "investigations.manage" },
+      {
+        label: "RCA summaries",
+        href: "/rca-summaries",
+        icon: FileCheck2,
+        permission: "investigations.manage",
+      },
     ],
   },
   {
@@ -65,15 +83,14 @@ export const NAV_GROUPS: NavGroup[] = [
     items: [{ label: "Overview", href: "/reports", icon: BarChart3 }],
   },
   {
+    // One way in rather than a row per screen. Every one of these is listed on
+    // the Settings page with a line saying what it is for, and carrying both
+    // meant the same six entries in two places — which is not a shortcut, it
+    // is two things to keep in step. No permission on it: the page shows only
+    // what the viewer can reach, and everyone can at least change their own
+    // password.
     label: "Settings",
-    items: [
-      { label: "Workspace", href: "/settings", icon: Settings },
-      { label: "Members & roles", href: "/settings/members", icon: Users, permission: "admin.users.manage" },
-      { label: "Rules & categories", href: "/settings/rules", icon: SlidersHorizontal, permission: "admin.settings.manage" },
-      { label: "Billing & plan", href: "/settings/billing", icon: CreditCard, permission: "admin.org.manage" },
-      { label: "Audit log", href: "/settings/audit", icon: ScrollText, permission: "admin.audit.view" },
-      { label: "Import complaints", href: "/settings/import", icon: Upload, permission: "complaints.import" },
-    ],
+    items: [{ label: "Settings", href: "/settings", icon: Settings }],
   },
   {
     label: "Platform",

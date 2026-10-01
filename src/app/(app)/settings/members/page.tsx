@@ -25,7 +25,10 @@ export default async function MembersPage() {
     );
   }
 
-  const [members, roles] = await Promise.all([getMemberDetails(session.tenant.id), getRoles(session.tenant.id)]);
+  const [members, roles] = await Promise.all([
+    getMemberDetails(session.tenant.id),
+    getRoles(session.tenant.id),
+  ]);
 
   return (
     <div className="flex flex-col gap-4">
@@ -33,8 +36,10 @@ export default async function MembersPage() {
         <BackLink href="/settings" label="Settings" />
         <h1 className="text-xl font-semibold text-ink">Members &amp; roles</h1>
         <p className="text-sm text-ink-faint">
-          Who is in this workspace and what each of them can do. The seven roles below match the functions the complaint
-          process needs — Marketing Operations, Quality, Manufacturing, Sales, Finance, Leadership and Report Only.
+          Who is in this workspace and what each of them can do. The seven roles
+          below match the functions the complaint process needs — Marketing
+          Operations, Quality, Manufacturing, Sales, Finance, Leadership and
+          Report Only.
         </p>
       </div>
 

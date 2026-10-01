@@ -4,14 +4,22 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Field, FieldError } from "@/components/ui/field";
 import { LogoUpload } from "./logo-upload";
-import { updateWorkspace } from "./actions";
+import { updateWorkspace } from "../actions";
 import type { SessionTenant } from "@/lib/data/session";
 
-export function WorkspaceSettingsForm({ tenant, canManage }: { tenant: SessionTenant; canManage: boolean }) {
+export function WorkspaceSettingsForm({
+  tenant,
+  canManage,
+}: {
+  tenant: SessionTenant;
+  canManage: boolean;
+}) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
-  const [accentColor, setAccentColor] = useState(tenant.branding.accent_color ?? "#1d3557");
+  const [accentColor, setAccentColor] = useState(
+    tenant.branding.accent_color ?? "#1d3557",
+  );
 
   async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -28,11 +36,35 @@ export function WorkspaceSettingsForm({ tenant, canManage }: { tenant: SessionTe
 
   return (
     <form onSubmit={onSubmit} className="flex max-w-md flex-col gap-4">
-      <Field label="Workspace name" name="name" defaultValue={tenant.name} required disabled={!canManage} />
-      <Field label="Timezone" name="timezone" defaultValue={tenant.timezone} required disabled={!canManage} placeholder="Africa/Nairobi" />
-      <Field label="Currency" name="currency" defaultValue={tenant.currency} required disabled={!canManage} maxLength={3} placeholder="KES" />
+      <Field
+        label="Workspace name"
+        name="name"
+        defaultValue={tenant.name}
+        required
+        disabled={!canManage}
+      />
+      <Field
+        label="Timezone"
+        name="timezone"
+        defaultValue={tenant.timezone}
+        required
+        disabled={!canManage}
+        placeholder="Africa/Nairobi"
+      />
+      <Field
+        label="Currency"
+        name="currency"
+        defaultValue={tenant.currency}
+        required
+        disabled={!canManage}
+        maxLength={3}
+        placeholder="KES"
+      />
 
-      <LogoUpload tenantId={tenant.id} currentUrl={tenant.branding.logo_url ?? null} />
+      <LogoUpload
+        tenantId={tenant.id}
+        currentUrl={tenant.branding.logo_url ?? null}
+      />
 
       <div className="flex flex-col gap-1.5">
         <label htmlFor="accent_color" className="text-sm font-medium text-ink">
@@ -50,11 +82,17 @@ export function WorkspaceSettingsForm({ tenant, canManage }: { tenant: SessionTe
           />
           <span className="tnum text-sm text-ink-faint">{accentColor}</span>
         </div>
-        <p className="text-xs text-ink-faint">Tints buttons and links. The sidebar stays EDOS CRM&rsquo;s navy.</p>
+        <p className="text-xs text-ink-faint">
+          Tints buttons and links. The sidebar stays EDOS CRM&rsquo;s navy.
+        </p>
       </div>
 
       {error && <FieldError>{error}</FieldError>}
-      {saved && <p className="rounded-lg bg-good/10 px-3 py-2 text-sm text-good">Saved.</p>}
+      {saved && (
+        <p className="rounded-lg bg-good/10 px-3 py-2 text-sm text-good">
+          Saved.
+        </p>
+      )}
 
       {canManage && (
         <div>

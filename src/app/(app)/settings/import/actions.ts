@@ -6,7 +6,11 @@ import { hasPermission } from "@/lib/auth/permissions";
 import { getDefaultWorkflowVersion } from "@/lib/data/workflows";
 import { TABLES } from "@/lib/data/tables";
 
-export type ImportState = { error: string | null; imported: number | null; skipped: number };
+export type ImportState = {
+  error: string | null;
+  imported: number | null;
+  skipped: number;
+};
 
 /** Brief §6 "Data migration": import agreed-on open and historical cases
  * from current/interim sources. Expects a simple CSV with a header row —
@@ -17,28 +21,48 @@ export type ImportState = { error: string | null; imported: number | null; skipp
  * a column layout beforehand is the brief's own "agreed on" qualifier).
  * Every imported row gets its own real case number and an audit-visible
  * `import.created` event, never a silent bulk insert. */
-export async function importComplaints(_prev: ImportState, formData: FormData): Promise<ImportState> {
+export async function importComplaints(
+  _prev: ImportState,
+  formData: FormData,
+): Promise<ImportState> {
   const session = await resolveSession();
-  if (session.kind !== "ok") return { error: "Your session has expired.", imported: null, skipped: 0 };
+  if (session.kind !== "ok")
+    return { error: "Your session has expired.", imported: null, skipped: 0 };
   if (!(await hasPermission(session.tenant.id, "complaints.import"))) {
-    return { error: "You don't have permission to import complaints.", imported: null, skipped: 0 };
+    return {
+      error: "You don't have permission to import complaints.",
+      imported: null,
+      skipped: 0,
+    };
   }
 
   const file = formData.get("file");
-  if (!(file instanceof File)) return { error: "Choose a CSV file first.", imported: null, skipped: 0 };
+  if (!(file instanceof File))
+    return { error: "Choose a CSV file first.", imported: null, skipped: 0 };
 
   const text = await file.text();
   const lines = text.split(/\r?\n/).filter((l) => l.trim().length > 0);
-  if (lines.length < 2) return { error: "That file has no data rows.", imported: null, skipped: 0 };
+  if (lines.length < 2)
+    return { error: "That file has no data rows.", imported: null, skipped: 0 };
 
   const headers = parseCsvLine(lines[0]).map((h) => h.trim().toLowerCase());
   const rows = lines.slice(1).map(parseCsvLine);
 
   const workflow = await getDefaultWorkflowVersion(session.tenant.id);
-  if (!workflow) return { error: "This workspace has no workflow set up yet.", imported: null, skipped: 0 };
+  if (!workflow)
+    return {
+      error: "This workspace has no workflow set up yet.",
+      imported: null,
+      skipped: 0,
+    };
   const firstStage = workflow.definition.stages[0]?.key;
   const validStages = new Set(workflow.definition.stages.map((s) => s.key));
-  if (!firstStage) return { error: "This workflow has no stages.", imported: null, skipped: 0 };
+  if (!firstStage)
+    return {
+      error: "This workflow has no stages.",
+      imported: null,
+      skipped: 0,
+    };
 
   const supabase = await createClient();
   let imported = 0;
@@ -52,16 +76,23 @@ export async function importComplaints(_prev: ImportState, formData: FormData): 
       continue;
     }
 
-    const { data: caseNumber, error: numberError } = await supabase.rpc("edoscrm_next_case_number", {
-      p_tenant_id: session.tenant.id,
-    });
+    const { data: caseNumber, error: numberError } = await supabase.rpc(
+      "edoscrm_next_case_number",
+      {
+        p_tenant_id: session.tenant.id,
+      },
+    );
     if (numberError || !caseNumber) {
       skipped++;
       continue;
     }
 
-    const severity = ["T1", "T2", "T3"].includes(record.severity) ? record.severity : "T3";
-    const stageKey = validStages.has(record.status) ? record.status : firstStage;
+    const severity = ["T1", "T2", "T3"].includes(record.severity)
+      ? record.severity
+      : "T3";
+    const stageKey = validStages.has(record.status)
+      ? record.status
+      : firstStage;
 
     const { data: complaint, error: insertError } = await supabase
       .from(TABLES.complaints)

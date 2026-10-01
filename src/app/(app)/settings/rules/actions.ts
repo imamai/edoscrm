@@ -4,15 +4,25 @@ import { revalidatePath } from "next/cache";
 import { resolveSession } from "@/lib/data/session";
 import { hasPermission } from "@/lib/auth/permissions";
 import { updateSlaRule } from "@/lib/data/sla";
-import { addCategory, setCategoryActive, updateKpiTarget, updateTenantSettings, getTenantSettings } from "@/lib/data/settings";
+import {
+  addCategory,
+  setCategoryActive,
+  updateKpiTarget,
+  updateTenantSettings,
+  getTenantSettings,
+} from "@/lib/data/settings";
 import { writeAudit } from "@/lib/data/audit";
 import type { Severity } from "@/lib/data/complaints";
 
 async function guard() {
   const session = await resolveSession();
-  if (session.kind !== "ok") return { ok: false as const, error: "Your session has expired." };
+  if (session.kind !== "ok")
+    return { ok: false as const, error: "Your session has expired." };
   if (!(await hasPermission(session.tenant.id, "admin.settings.manage"))) {
-    return { ok: false as const, error: "You don't have permission to change workspace rules." };
+    return {
+      ok: false as const,
+      error: "You don't have permission to change workspace rules.",
+    };
   }
   return { ok: true as const, session };
 }
@@ -33,7 +43,11 @@ export async function saveSlaAction(formData: FormData) {
 
   for (const severity of ["T1", "T2", "T3"] as Severity[]) {
     const ack = minutesOrNull(formData.get(`${severity}_ack`));
-    if (!ack) return { ok: false as const, error: `${severity} needs an acknowledgement deadline.` };
+    if (!ack)
+      return {
+        ok: false as const,
+        error: `${severity} needs an acknowledgement deadline.`,
+      };
     const result = await updateSlaRule(g.session.tenant.id, severity, {
       acknowledgement_minutes: ack,
       rca_minutes: minutesOrNull(formData.get(`${severity}_rca`)),
@@ -79,13 +93,25 @@ export async function saveThresholdsAction(formData: FormData) {
   // and the escalation would fire first — which is not what anyone means by
   // "warn me before you escalate".
   if (values.warn_count >= values.escalate_count) {
-    return { ok: false as const, error: "The warning threshold has to be lower than the escalation threshold." };
+    return {
+      ok: false as const,
+      error:
+        "The warning threshold has to be lower than the escalation threshold.",
+    };
   }
   if (values.escalate_count >= values.mandatory_rca_count) {
-    return { ok: false as const, error: "The escalation threshold has to be lower than the mandatory-RCA threshold." };
+    return {
+      ok: false as const,
+      error:
+        "The escalation threshold has to be lower than the mandatory-RCA threshold.",
+    };
   }
   if (values.mandatory_rca_count >= values.withdrawal_count) {
-    return { ok: false as const, error: "The mandatory-RCA threshold has to be lower than the withdrawal threshold." };
+    return {
+      ok: false as const,
+      error:
+        "The mandatory-RCA threshold has to be lower than the withdrawal threshold.",
+    };
   }
 
   const result = await updateTenantSettings(g.session.tenant.id, values);
@@ -110,7 +136,11 @@ export async function saveOperationsAction(formData: FormData) {
   const retentionRaw = String(formData.get("retention_days") ?? "").trim();
   const retention = retentionRaw ? Number(retentionRaw) : null;
   if (retentionRaw && (!Number.isFinite(retention!) || retention! < 30)) {
-    return { ok: false as const, error: "A retention period needs to be at least 30 days, or blank to keep data indefinitely." };
+    return {
+      ok: false as const,
+      error:
+        "A retention period needs to be at least 30 days, or blank to keep data indefinitely.",
+    };
   }
 
   const before = await getTenantSettings(g.session.tenant.id);
@@ -151,7 +181,10 @@ export async function saveTargetsAction(formData: FormData) {
     const raw = String(value).trim();
     const pct = raw ? Number(raw) : null;
     if (raw && (!Number.isFinite(pct!) || pct! < 0 || pct! > 100)) {
-      return { ok: false as const, error: "Targets are percentages between 0 and 100." };
+      return {
+        ok: false as const,
+        error: "Targets are percentages between 0 and 100.",
+      };
     }
     const result = await updateKpiTarget(g.session.tenant.id, key, pct);
     if (!result.ok) return result;
@@ -171,11 +204,17 @@ export async function saveTargetsAction(formData: FormData) {
 export async function addCategoryAction(name: string) {
   const g = await guard();
   if (!g.ok) return g;
-  if (!name.trim()) return { ok: false as const, error: "Give the category a name." };
+  if (!name.trim())
+    return { ok: false as const, error: "Give the category a name." };
 
   const result = await addCategory(g.session.tenant.id, name);
   if (!result.ok) {
-    return { ok: false as const, error: result.error.includes("duplicate") ? "That category already exists." : result.error };
+    return {
+      ok: false as const,
+      error: result.error.includes("duplicate")
+        ? "That category already exists."
+        : result.error,
+    };
   }
   await writeAudit({
     tenantId: g.session.tenant.id,
@@ -198,7 +237,9 @@ export async function setCategoryActiveAction(id: string, isActive: boolean) {
   await writeAudit({
     tenantId: g.session.tenant.id,
     actorId: g.session.user.id,
-    action: isActive ? "settings.category.restored" : "settings.category.retired",
+    action: isActive
+      ? "settings.category.restored"
+      : "settings.category.retired",
     entityType: "category",
     entityId: id,
   });

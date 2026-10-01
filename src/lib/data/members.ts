@@ -21,9 +21,15 @@ export async function getTenantMembers(tenantId: string): Promise<Member[]> {
   const userIds = (memberships ?? []).map((m) => m.user_id as string);
   if (userIds.length === 0) return [];
 
-  const { data: users } = await supabase.from(TABLES.users).select("id, full_name, email").in("id", userIds);
+  const { data: users } = await supabase
+    .from(TABLES.users)
+    .select("id, full_name, email")
+    .in("id", userIds);
   return (users ?? [])
-    .map((u) => ({ id: u.id as string, name: (u.full_name as string | null) ?? (u.email as string) }))
+    .map((u) => ({
+      id: u.id as string,
+      name: (u.full_name as string | null) ?? (u.email as string),
+    }))
     .sort((a, b) => a.name.localeCompare(b.name));
 }
 
@@ -37,7 +43,12 @@ export async function getTenantMembers(tenantId: string): Promise<Member[]> {
  * requirement resting on "a named investigating function" was unreachable.
  * ------------------------------------------------------------------ */
 
-export type Role = { id: string; name: string; description: string | null; is_system: boolean };
+export type Role = {
+  id: string;
+  name: string;
+  description: string | null;
+  is_system: boolean;
+};
 
 export type MemberDetail = {
   user_id: string;
@@ -59,7 +70,9 @@ export async function getRoles(tenantId: string): Promise<Role[]> {
   return (data ?? []) as Role[];
 }
 
-export async function getMemberDetails(tenantId: string): Promise<MemberDetail[]> {
+export async function getMemberDetails(
+  tenantId: string,
+): Promise<MemberDetail[]> {
   const supabase = await createClient();
   const { data: memberships } = await supabase
     .from(TABLES.memberships)
@@ -68,18 +81,31 @@ export async function getMemberDetails(tenantId: string): Promise<MemberDetail[]
   if (!memberships?.length) return [];
 
   const userIds = memberships.map((m) => m.user_id as string);
-  const [{ data: users }, { data: userRoles }, { data: roles }] = await Promise.all([
-    supabase.from(TABLES.users).select("id, email, full_name").in("id", userIds),
-    supabase.from(TABLES.userRoles).select("user_id, role_id").eq("tenant_id", tenantId).in("user_id", userIds),
-    supabase.from(TABLES.roles).select("id, name").eq("tenant_id", tenantId),
-  ]);
+  const [{ data: users }, { data: userRoles }, { data: roles }] =
+    await Promise.all([
+      supabase
+        .from(TABLES.users)
+        .select("id, email, full_name")
+        .in("id", userIds),
+      supabase
+        .from(TABLES.userRoles)
+        .select("user_id, role_id")
+        .eq("tenant_id", tenantId)
+        .in("user_id", userIds),
+      supabase.from(TABLES.roles).select("id, name").eq("tenant_id", tenantId),
+    ]);
 
   const userById = new Map((users ?? []).map((u) => [u.id as string, u]));
-  const roleById = new Map((roles ?? []).map((r) => [r.id as string, r.name as string]));
+  const roleById = new Map(
+    (roles ?? []).map((r) => [r.id as string, r.name as string]),
+  );
   const rolesByUser = new Map<string, { id: string; name: string }[]>();
   for (const ur of userRoles ?? []) {
     const list = rolesByUser.get(ur.user_id as string) ?? [];
-    list.push({ id: ur.role_id as string, name: roleById.get(ur.role_id as string) ?? "Unknown role" });
+    list.push({
+      id: ur.role_id as string,
+      name: roleById.get(ur.role_id as string) ?? "Unknown role",
+    });
     rolesByUser.set(ur.user_id as string, list);
   }
 
@@ -93,17 +119,23 @@ export async function getMemberDetails(tenantId: string): Promise<MemberDetail[]
         status: m.status as string,
         last_active_at: (m.last_active_at as string | null) ?? null,
         created_at: m.created_at as string,
-        roles: (rolesByUser.get(m.user_id as string) ?? []).sort((a, b) => a.name.localeCompare(b.name)),
+        roles: (rolesByUser.get(m.user_id as string) ?? []).sort((a, b) =>
+          a.name.localeCompare(b.name),
+        ),
       };
     })
-    .sort((a, b) => (a.full_name ?? a.email).localeCompare(b.full_name ?? b.email));
+    .sort((a, b) =>
+      (a.full_name ?? a.email).localeCompare(b.full_name ?? b.email),
+    );
 }
 
 /** The address this request arrived on, so the invitation comes back here. */
 async function inviteOrigin(): Promise<string> {
   const h = await headers();
   const host = h.get("x-forwarded-host") ?? h.get("host") ?? "localhost:3000";
-  const proto = h.get("x-forwarded-proto") ?? (host.startsWith("localhost") ? "http" : "https");
+  const proto =
+    h.get("x-forwarded-proto") ??
+    (host.startsWith("localhost") ? "http" : "https");
   return `${proto}://${host}`;
 }
 
@@ -123,12 +155,24 @@ export async function inviteMember(
   email: string,
   invitedBy: string,
   roleIds: string[],
-): Promise<{ ok: true; status: "invited" | "added" } | { ok: false; error: string }> {
+): Promise<
+  | { ok: true; status: "invited" | "added"; mailed: boolean }
+  | { ok: false; error: string }
+> {
   const admin = createAdminClient();
   const normalised = email.trim().toLowerCase();
   if (!normalised) return { ok: false, error: "An email address is required." };
 
-  const { data: existing } = await admin.from(TABLES.users).select("id").eq("email", normalised).maybeSingle();
+  // Only meaningful for a brand-new account: somebody already on the platform
+  // is added straight to the workspace and is sent nothing, because there is
+  // nothing for them to set up.
+  let mailed = true;
+
+  const { data: existing } = await admin
+    .from(TABLES.users)
+    .select("id")
+    .eq("email", normalised)
+    .maybeSingle();
   let userId = existing?.id as string | undefined;
   let status: "invited" | "added" = "added";
 
@@ -145,13 +189,18 @@ export async function inviteMember(
       options: { redirectTo: `${base}/auth/callback?next=/update-password` },
     });
     if (error || !data.user) {
-      return { ok: false, error: error?.message ?? "Could not send that invitation." };
+      return {
+        ok: false,
+        error: error?.message ?? "Could not send that invitation.",
+      };
     }
     userId = data.user.id;
     status = "invited";
     // The profile row normally appears when someone signs in; create it now so
     // they show in the member list before they have accepted.
-    await admin.from(TABLES.users).upsert({ id: userId, email: normalised }, { onConflict: "id" });
+    await admin
+      .from(TABLES.users)
+      .upsert({ id: userId, email: normalised }, { onConflict: "id" });
 
     const tokenHash = data.properties?.hashed_token;
     if (tokenHash) {
@@ -175,33 +224,53 @@ export async function inviteMember(
           invitedBy: (inviter?.full_name as string) ?? null,
         }),
       });
-      // The membership below is the thing that matters; a failed send is worth
-      // a log, not a rollback. They can still be let in with a password reset.
-      if (!sent.sent) console.error("EDOS CRM invitation email failed:", sent.reason);
+      // The membership below is the thing that matters, so a failed send is
+      // not a rollback — but it is not merely a log line either. An admin who
+      // is told nothing assumes the invitation arrived, and then waits for
+      // somebody who never heard from us.
+      if (!sent.sent) {
+        console.error("EDOS CRM invitation email failed:", sent.reason);
+        mailed = false;
+      }
     }
   }
 
   const { error: memberError } = await admin
     .from(TABLES.memberships)
-    .upsert({ user_id: userId, tenant_id: tenantId, status: "active", invited_by: invitedBy }, { onConflict: "user_id,tenant_id" });
+    .upsert(
+      {
+        user_id: userId,
+        tenant_id: tenantId,
+        status: "active",
+        invited_by: invitedBy,
+      },
+      { onConflict: "user_id,tenant_id" },
+    );
   if (memberError) return { ok: false, error: memberError.message };
 
   if (roleIds.length) {
-    const { error: roleError } = await admin
-      .from(TABLES.userRoles)
-      .upsert(
-        roleIds.map((role_id) => ({ user_id: userId!, tenant_id: tenantId, role_id, scope_type: "tenant" })),
-        { onConflict: "user_id,tenant_id,role_id" },
-      );
+    const { error: roleError } = await admin.from(TABLES.userRoles).upsert(
+      roleIds.map((role_id) => ({
+        user_id: userId!,
+        tenant_id: tenantId,
+        role_id,
+        scope_type: "tenant",
+      })),
+      { onConflict: "user_id,tenant_id,role_id" },
+    );
     if (roleError) return { ok: false, error: roleError.message };
   }
 
-  return { ok: true, status };
+  return { ok: true, status, mailed };
 }
 
 /** Replace a member's roles wholesale — simpler to reason about than a set of
  * add/remove deltas, and it is what the screen actually submits. */
-export async function setMemberRoles(tenantId: string, userId: string, roleIds: string[]) {
+export async function setMemberRoles(
+  tenantId: string,
+  userId: string,
+  roleIds: string[],
+) {
   const supabase = await createClient();
   const { error: deleteError } = await supabase
     .from(TABLES.userRoles)
@@ -213,7 +282,14 @@ export async function setMemberRoles(tenantId: string, userId: string, roleIds: 
   if (roleIds.length) {
     const { error } = await supabase
       .from(TABLES.userRoles)
-      .insert(roleIds.map((role_id) => ({ user_id: userId, tenant_id: tenantId, role_id, scope_type: "tenant" })));
+      .insert(
+        roleIds.map((role_id) => ({
+          user_id: userId,
+          tenant_id: tenantId,
+          role_id,
+          scope_type: "tenant",
+        })),
+      );
     if (error) return { ok: false as const, error: error.message };
   }
   return { ok: true as const };
@@ -221,19 +297,28 @@ export async function setMemberRoles(tenantId: string, userId: string, roleIds: 
 
 /** Membership is suspended, never deleted — the cases someone handled keep
  * pointing at a real person, and the audit trail stays readable. */
-export async function setMemberStatus(tenantId: string, userId: string, status: "active" | "suspended") {
+export async function setMemberStatus(
+  tenantId: string,
+  userId: string,
+  status: "active" | "suspended",
+) {
   const supabase = await createClient();
   const { error } = await supabase
     .from(TABLES.memberships)
     .update({ status })
     .eq("tenant_id", tenantId)
     .eq("user_id", userId);
-  return error ? { ok: false as const, error: error.message } : { ok: true as const };
+  return error
+    ? { ok: false as const, error: error.message }
+    : { ok: true as const };
 }
 
 /** How many people still hold a given permission — used to stop the last
  * administrator locking themselves out of their own workspace. */
-export async function countMembersWithRole(tenantId: string, roleName: string): Promise<number> {
+export async function countMembersWithRole(
+  tenantId: string,
+  roleName: string,
+): Promise<number> {
   const supabase = await createClient();
   const { data: role } = await supabase
     .from(TABLES.roles)
